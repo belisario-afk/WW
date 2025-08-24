@@ -1,5 +1,5 @@
 // App: Spotify PKCE auth + Web Playback + Pro Visualizer Engine
-import { VizEngine } from './viz/engine.js?v=4';
+import { VizEngine } from './viz/engine.js?v=5';
 
 const cfg = window.APP_CONFIG;
 const statusEl = document.getElementById('status');
@@ -109,7 +109,7 @@ async function refreshAccessToken() {
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
-    client_id: cfg.CLIENT_ID
+    client_id: cfg.ClientId || cfg.CLIENT_ID
   });
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
@@ -237,8 +237,7 @@ async function fetchAnalysisForTrack(trackId) {
     viz.setAnalysis(currentAnalysis);
     beatIdx = barIdx = sectionIdx = tatumIdx = 0;
     lastPosMs = 0;
-    const tempo = currentAnalysis.track?.tempo || 120;
-    viz.setTempo(tempo);
+    viz.setTempo(currentAnalysis.track?.tempo || 120);
   } catch (e) { console.error('analysis error', e); currentAnalysis = null; }
 }
 function stepAnalysisTriggers(prevMs, nowMs) {
@@ -251,10 +250,10 @@ function stepAnalysisTriggers(prevMs, nowMs) {
     }
     return idx;
   };
-  beatIdx = pass(currentAnalysis.beats || [], beatIdx, 'beat', (t, obj) => viz.onBeat(obj));
-  tatumIdx = pass(currentAnalysis.tatums || [], tatumIdx, 'tatum', (t, obj) => viz.onTatum(obj));
-  barIdx = pass(currentAnalysis.bars || [], barIdx, 'bar', (t, obj) => viz.onBar(obj));
-  sectionIdx = pass(currentAnalysis.sections || [], sectionIdx, 'section', (t, obj) => viz.onSection(obj));
+  beatIdx = pass(currentAnalysis.beats || [], beatIdx, 'beat', (_t, obj) => viz.onBeat(obj));
+  tatumIdx = pass(currentAnalysis.tatums || [], tatumIdx, 'tatum', (_t, obj) => viz.onTatum(obj));
+  barIdx = pass(currentAnalysis.bars || [], barIdx, 'bar', (_t, obj) => viz.onBar(obj));
+  sectionIdx = pass(currentAnalysis.sections || [], sectionIdx, 'section', (_t, obj) => viz.onSection(obj));
 }
 
 /* Colors */
@@ -345,7 +344,7 @@ sceneStackSelect.addEventListener('change', () => { viz.setSceneStack(sceneStack
 
 async function boot() {
   loadTokensFromStorage();
-  viz.init();
+  await viz.init(); // now async (loads postprocessing dynamically)
   viz.applyPreset('default');
   scenePill.textContent = `Scene stack: ${viz.describeStack()}`;
   if (accessToken) {

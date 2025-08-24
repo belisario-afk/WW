@@ -1,27 +1,15 @@
 // VizEngine: Three.js multi-scene engine with post-processing and scene stack compositor
 import * as THREE from 'https://esm.sh/three@0.160.0';
-import {
-  EffectComposer,
-  RenderPass,
-  EffectPass,
-  BloomEffect,
-  VignetteEffect,
-  NoiseEffect,
-  ChromaticAberrationEffect,
-  DepthOfFieldEffect
-} from 'https://esm.sh/postprocessing@6.35.3?deps=three@0.160.0';
 
-// IMPORTANT: default imports with cache-busting
-import AuroraScene from './scenes/aurora.js?v=4';
-import KaleidoScene from './scenes/kaleidoscope.js?v=4';
-import TunnelScene from './scenes/tunnel.js?v=4';
-import VoronoiScene from './scenes/voronoi.js?v=4';
-import RibbonsScene from './scenes/ribbons.js?v=4';
-import CoversScene from './scenes/covers.js?v=4';
+// Import scenes (default exports), cache-busted
+import AuroraScene from './scenes/aurora.js?v=5';
+import KaleidoScene from './scenes/kaleidoscope.js?v=5';
+import TunnelScene from './scenes/tunnel.js?v=5';
+import VoronoiScene from './scenes/voronoi.js?v=5';
+import RibbonsScene from './scenes/ribbons.js?v=5';
+import CoversScene from './scenes/covers.js?v=5';
 
 export class VizEngine {
-  /* unchanged implementation from your latest v=3, omitted for brevity */
-}
   constructor(container) {
     this.container = container;
     this.renderer = null;
@@ -39,7 +27,8 @@ export class VizEngine {
     this.stack = ['aurora', 'tunnel', 'kaleido', 'ribbons', 'covers'];
     this.layers = {}; // id -> { scene, target, opacity }
 
-    // Post FX
+    // Post FX config (module loaded dynamically)
+    this.PP = null;
     this.composer = null;
     this.post = { bloom: 0.9, dof: 0.35, grain: 0.04, chroma: 0.0035 };
 
@@ -68,10 +57,14 @@ export class VizEngine {
     }, { passive: true });
   }
 
-  init() {
+  async init() {
+    // Renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(this.pixelRatio);
     this.container.appendChild(this.renderer.domElement);
+
+    // Dynamically import postprocessing to avoid static import parse issues
+    this.PP = await import('https://esm.sh/postprocessing@6.35.3?deps=three@0.160.0');
 
     this._setupCompositor();
     this._createScenes();
@@ -127,14 +120,11 @@ export class VizEngine {
     this.quad = quad;
 
     // Post FX
+    const { EffectComposer, RenderPass, EffectPass, BloomEffect, VignetteEffect, NoiseEffect, ChromaticAberrationEffect, DepthOfFieldEffect } = this.PP;
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this._rebuildPost();
-  }
 
-  _rebuildPost() {
-    while (this.composer.passes.length > 1) this.composer.passes.pop();
-
+    // Build the effect chain
     const bloom = new BloomEffect({ intensity: this.post.bloom, luminanceThreshold: 0.2, luminanceSmoothing: 0.8 });
     const vignette = new VignetteEffect({ darkness: 0.4, offset: 0.2 });
     const grain = new NoiseEffect({ premultiply: true, blendFunction: 12 /* SOFT_LIGHT */ });
@@ -146,6 +136,24 @@ export class VizEngine {
     dof.blurPass.blurMaterial.multiBlur = true;
     dof.blurPass.scale = Math.max(0.0001, this.post.dof);
 
+    const effectPass = new EffectPass(this.camera, bloom, vignette, grain, chroma, dof);
+    this.composer.addPass(effectPass);
+  }
+
+  _rebuildPost() {
+    if (!this.composer || !this.PP) return;
+    const { EffectPass, BloomEffect, VignetteEffect, NoiseEffect, ChromaticAberrationEffect, DepthOfFieldEffect } = this.PP;
+    while (this.composer.passes.length > 1) this.composer.passes.pop();
+    const bloom = new BloomEffect({ intensity: this.post.bloom, luminanceThreshold: 0.2, luminanceSmoothing: 0.8 });
+    const vignette = new VignetteEffect({ darkness: 0.4, offset: 0.2 });
+    const grain = new NoiseEffect({ premultiply: true, blendFunction: 12 });
+    grain.blendMode.opacity.value = this.post.grain;
+    const chroma = new ChromaticAberrationEffect({ offset: new THREE.Vector2(this.post.chroma, 0) });
+    const dof = new DepthOfFieldEffect(this.camera, { focusDistance: 0.013, focalLength: 0.055, bokehScale: 2.0 });
+    dof.resolution.height = 720;
+    dof.resolution.scale = this.post.dof > 0 ? 1 : 0.5;
+    dof.blurPass.blurMaterial.multiBlur = true;
+    dof.blurPass.scale = Math.max(0.0001, this.post.dof);
     const effectPass = new EffectPass(this.camera, bloom, vignette, grain, chroma, dof);
     this.composer.addPass(effectPass);
   }
@@ -177,24 +185,24 @@ export class VizEngine {
     tex.needsUpdate = true;
     tex.colorSpace = THREE.SRGBColorSpace;
     this.albumTexture = tex;
-    for (const s of Object.values(this.scenes)) s.setAlbumTexture(tex);
+    for (const s of Object.values(this.scenes)) s.setAlbumTexture?.(tex);
   }
 
-  setPalette(pal) { this.palette = pal; for (const s of Object.values(this.scenes)) s.setPalette(pal); }
-  setAnalysis(analysis) { this.analysis = analysis; for (const s of Object.values(this.scenes)) s.setAnalysis(analysis); }
-  setTempo(tempo) { this.tempo = tempo; for (const s of Object.values(this.scenes)) s.setTempo(tempo); }
+  setPalette(pal) { this.palette = pal; for (const s of Object.values(this.scenes)) s.setPalette?.(pal); }
+  setAnalysis(analysis) { this.analysis = analysis; for (const s of Object.values(this.scenes)) s.setAnalysis?.(analysis); }
+  setTempo(tempo) { this.tempo = tempo; for (const s of Object.values(this.scenes)) s.setTempo?.(tempo); }
 
   onBeat(obj) {
     this.scenes.voronoi?.addRipple(obj.start, obj.duration);
-    this.scenes.kaleido?.onBeat();
-    this.scenes.ribbons?.onBeat();
-    this.scenes.covers?.onBeat();
+    this.scenes.kaleido?.onBeat?.();
+    this.scenes.ribbons?.onBeat?.();
+    this.scenes.covers?.onBeat?.();
   }
-  onBar() { this.scenes.tunnel?.onBar(); }
-  onTatum() { this.scenes.aurora?.onTatum(); }
+  onBar() { this.scenes.tunnel?.onBar?.(); }
+  onTatum() { this.scenes.aurora?.onTatum?.(); }
   onSection() {
-    this.scenes.kaleido?.setSegments(3 + Math.floor(Math.random() * 13));
-    this.scenes.tunnel?.onSection();
+    this.scenes.kaleido?.setSegments?.(3 + Math.floor(Math.random() * 13));
+    this.scenes.tunnel?.onSection?.();
   }
 
   applyPreset(name) {
@@ -246,7 +254,7 @@ export class VizEngine {
     if (this.renderer) this.renderer.setSize(this.width, this.height, false);
     for (const { target, scene } of Object.values(this.layers)) {
       target.setSize(this.width, this.height);
-      scene.resize(this.width, this.height);
+      scene.resize?.(this.width, this.height);
     }
     if (this.composer) this.composer.setSize(this.width, this.height);
   }
@@ -258,7 +266,7 @@ export class VizEngine {
     // Render each scene to its target
     for (const key of Object.keys(this.layers)) {
       const layer = this.layers[key];
-      layer.scene.update(dt, t, { positionMs, palette: this.palette, mouse: this.mouse });
+      layer.scene.update?.(dt, t, { positionMs, palette: this.palette, mouse: this.mouse });
       this.renderer.setRenderTarget(layer.target);
       this.renderer.clear();
       layer.scene.renderToTarget(this.renderer, layer.target);
@@ -273,6 +281,7 @@ export class VizEngine {
     u.t3.value = (this.layers[this.stack[3]]?.target.texture) || this.blankTexture; u.opacity3.value = 0.9;
     u.t4.value = (this.layers[this.stack[4]]?.target.texture) || this.blankTexture; u.opacity4.value = 0.9;
 
-    this.composer.render(dt);
+    if (this.composer) this.composer.render(dt);
+    else this.renderer.render(this.scene, this.camera);
   }
 }
