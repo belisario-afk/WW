@@ -61,9 +61,9 @@ export class AuroraScene {
       uniforms: {
         uTime: { value: 0 },
         uRes: { value: new THREE.Vector2(width, height) },
-        uA: { value: new THREE.Color(this.palette.palette[0] || '#1db954').toArray().slice(0,3) },
-        uB: { value: new THREE.Color(this.palette.palette[1] || '#ffffff').toArray().slice(0,3) },
-        uC: { value: new THREE.Color(this.palette.palette[2] || '#232323').toArray().slice(0,3) },
+        uA: { value: new THREE.Color(this.palette.palette[0] || '#1db954') },
+        uB: { value: new THREE.Color(this.palette.palette[1] || '#ffffff') },
+        uC: { value: new THREE.Color(this.palette.palette[2] || '#232323') },
         uPulse: { value: 0 }
       },
       vertexShader: vert,
@@ -77,9 +77,9 @@ export class AuroraScene {
   setPalette(pal) {
     this.palette = pal;
     if (this.mesh) {
-      this.mesh.material.uniforms.uA.value = new THREE.Color(this.palette.palette[0] || '#1db954').toArray().slice(0,3);
-      this.mesh.material.uniforms.uB.value = new THREE.Color(this.palette.palette[1] || '#ffffff').toArray().slice(0,3);
-      this.mesh.material.uniforms.uC.value = new THREE.Color(this.palette.palette[2] || '#232323').toArray().slice(0,3);
+      this.mesh.material.uniforms.uA.value = new THREE.Color(this.palette.palette[0] || '#1db954');
+      this.mesh.material.uniforms.uB.value = new THREE.Color(this.palette.palette[1] || '#ffffff');
+      this.mesh.material.uniforms.uC.value = new THREE.Color(this.palette.palette[2] || '#232323');
     }
   }
   setAlbumTexture() {}

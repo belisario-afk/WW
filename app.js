@@ -1,5 +1,5 @@
 // App: Spotify PKCE auth + Web Playback + Pro Visualizer Engine
-import { VizEngine } from './viz/engine.js';
+import { VizEngine } from './viz/engine.js?v=2';
 
 const cfg = window.APP_CONFIG;
 const statusEl = document.getElementById('status');
@@ -275,7 +275,6 @@ async function fetchAnalysisForTrack(trackId) {
     viz.setAnalysis(currentAnalysis);
     beatIdx = barIdx = sectionIdx = tatumIdx = 0;
     lastPosMs = 0;
-    // Set BPM and scene presets based on analysis tempo
     const tempo = currentAnalysis.track?.tempo || 120;
     viz.setTempo(tempo);
   } catch (e) {
@@ -379,7 +378,6 @@ async function afterAuth() {
 }
 
 function animationLoop() {
-  // Drive visualizer with current player position and analysis triggers
   const run = async () => {
     const state = player ? await player.getCurrentState() : null;
     const pos = state ? state.position : 0;
