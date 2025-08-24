@@ -49,7 +49,7 @@ void main(){
 
 const vert = `varying vec2 vUv; void main(){ vUv=uv; gl_Position = vec4(position.xy,0.0,1.0); }`;
 
-export class VoronoiScene {
+export default class VoronoiScene {
   constructor() {
     this.scene = new THREE.Scene();
     this.camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
@@ -68,8 +68,8 @@ export class VoronoiScene {
       uniforms: {
         uTime: { value: 0 },
         uRes: { value: new THREE.Vector2(width, height) },
-        uColorA: { value: new THREE.Color(this.palette.palette[0] || '#1db954').toArray().slice(0,3) },
-        uColorB: { value: new THREE.Color(this.palette.palette[1] || '#ffffff').toArray().slice(0,3) },
+        uColorA: { value: new THREE.Color(this.palette.palette[0] || '#1db954') },
+        uColorB: { value: new THREE.Color(this.palette.palette[1] || '#ffffff') },
         uRippleCount: { value: 0 },
         uRipples: { value: new Array(32).fill(0).map(_=>new THREE.Vector3()) }
       },
@@ -82,8 +82,8 @@ export class VoronoiScene {
   setPalette(pal) {
     this.palette = pal;
     if (this.mesh) {
-      this.mesh.material.uniforms.uColorA.value = new THREE.Color(this.palette.palette[0] || '#1db954').toArray().slice(0,3);
-      this.mesh.material.uniforms.uColorB.value = new THREE.Color(this.palette.palette[1] || '#ffffff').toArray().slice(0,3);
+      this.mesh.material.uniforms.uColorA.value = new THREE.Color(this.palette.palette[0] || '#1db954');
+      this.mesh.material.uniforms.uColorB.value = new THREE.Color(this.palette.palette[1] || '#ffffff');
     }
   }
   setAlbumTexture() {}
@@ -107,16 +107,10 @@ export class VoronoiScene {
     let count = 0;
     for (let i=0;i<this.ripples.length;i++){
       const r = this.ripples[i];
-      if (now - r.t < 6.0) {
-        arr[count].set(r.x, r.y, r.t);
-        count++;
-      }
+      if (now - r.t < 6.0) { arr[count].set(r.x, r.y, r.t); count++; }
     }
     this.mesh.material.uniforms.uRippleCount.value = count;
   }
 
-  renderToTarget(renderer, target) {
-    renderer.setRenderTarget(target);
-    renderer.render(this.scene, this.camera);
-  }
+  renderToTarget(renderer, target) { renderer.setRenderTarget(target); renderer.render(this.scene, this.camera); }
 }

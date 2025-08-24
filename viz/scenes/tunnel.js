@@ -1,6 +1,6 @@
 import * as THREE from 'https://esm.sh/three@0.160.0';
 
-export class TunnelScene {
+export default class TunnelScene {
   constructor() {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.1, 100);
@@ -65,8 +65,5 @@ export class TunnelScene {
     this.camera.position.y = Math.cos(t*0.3)*0.15;
   }
 
-  renderToTarget(renderer, target) {
-    renderer.setRenderTarget(target);
-    renderer.render(this.scene, this.camera);
-  }
+  renderToTarget(renderer, target) { renderer.setRenderTarget(target); renderer.render(this.scene, this.camera); }
 }

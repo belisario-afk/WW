@@ -11,12 +11,12 @@ import {
   DepthOfFieldEffect
 } from 'https://esm.sh/postprocessing@6.35.3?deps=three@0.160.0';
 
-import { AuroraScene } from './scenes/aurora.js';
-import { KaleidoScene } from './scenes/kaleidoscope.js';
-import { TunnelScene } from './scenes/tunnel.js';
-import { VoronoiScene } from './scenes/voronoi.js';
-import { RibbonsScene } from './scenes/ribbons.js';
-import { CoversScene } from './scenes/covers.js';
+import AuroraScene from './scenes/aurora.js';
+import KaleidoScene from './scenes/kaleidoscope.js';
+import TunnelScene from './scenes/tunnel.js';
+import VoronoiScene from './scenes/voronoi.js';
+import RibbonsScene from './scenes/ribbons.js';
+import CoversScene from './scenes/covers.js';
 
 export class VizEngine {
   constructor(container) {
@@ -76,7 +76,7 @@ export class VizEngine {
   }
 
   _setupCompositor() {
-    // 1x1 transparent fallback texture to avoid invalid sampler state
+    // 1x1 transparent fallback texture
     this.blankTexture = new THREE.DataTexture(new Uint8Array([0,0,0,0]), 1, 1, THREE.RGBAFormat);
     this.blankTexture.needsUpdate = true;
     this.blankTexture.colorSpace = THREE.SRGBColorSpace;
@@ -148,10 +148,7 @@ export class VizEngine {
   }
 
   _createScenes() {
-    const makeTarget = () => new THREE.WebGLRenderTarget(this.width, this.height, {
-      type: THREE.HalfFloatType,
-      depthBuffer: false
-    });
+    const makeTarget = () => new THREE.WebGLRenderTarget(this.width, this.height, { type: THREE.HalfFloatType, depthBuffer: false });
 
     this.scenes.aurora = new AuroraScene();
     this.scenes.kaleido = new KaleidoScene();
@@ -180,20 +177,9 @@ export class VizEngine {
     for (const s of Object.values(this.scenes)) s.setAlbumTexture(tex);
   }
 
-  setPalette(pal) {
-    this.palette = pal;
-    for (const s of Object.values(this.scenes)) s.setPalette(pal);
-  }
-
-  setAnalysis(analysis) {
-    this.analysis = analysis;
-    for (const s of Object.values(this.scenes)) s.setAnalysis(analysis);
-  }
-
-  setTempo(tempo) {
-    this.tempo = tempo;
-    for (const s of Object.values(this.scenes)) s.setTempo(tempo);
-  }
+  setPalette(pal) { this.palette = pal; for (const s of Object.values(this.scenes)) s.setPalette(pal); }
+  setAnalysis(analysis) { this.analysis = analysis; for (const s of Object.values(this.scenes)) s.setAnalysis(analysis); }
+  setTempo(tempo) { this.tempo = tempo; for (const s of Object.values(this.scenes)) s.setTempo(tempo); }
 
   onBeat(obj) {
     this.scenes.voronoi?.addRipple(obj.start, obj.duration);

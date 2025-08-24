@@ -1,5 +1,5 @@
 // App: Spotify PKCE auth + Web Playback + Pro Visualizer Engine
-import { VizEngine } from './viz/engine.js?v=2';
+import { VizEngine } from './viz/engine.js?v=3';
 
 const cfg = window.APP_CONFIG;
 const statusEl = document.getElementById('status');
@@ -40,13 +40,9 @@ let beatIdx = 0, barIdx = 0, sectionIdx = 0, tatumIdx = 0;
 
 const viz = new VizEngine(document.getElementById('viz3d'));
 
-/* -------------------- Utilities -------------------- */
-function logStatus(msg) {
-  statusEl.textContent = msg;
-}
-function setButtonsEnabled(ena) {
-  [prevBtn, nextBtn, playPauseBtn].forEach(b => b.disabled = !ena);
-}
+/* Utilities */
+function logStatus(msg) { statusEl.textContent = msg; }
+function setButtonsEnabled(ena) { [prevBtn, nextBtn, playPauseBtn].forEach(b => b.disabled = !ena); }
 function saveTokens({ access_token, refresh_token, expires_in }) {
   accessToken = access_token || accessToken;
   if (refresh_token) refreshToken = refresh_token;
@@ -70,21 +66,10 @@ function clearTokens() {
   localStorage.removeItem('sp_state');
 }
 
-/* -------------------- PKCE Auth -------------------- */
-async function sha256(plain) {
-  const enc = new TextEncoder().encode(plain);
-  const buf = await crypto.subtle.digest('SHA-256', enc);
-  return new Uint8Array(buf);
-}
-function base64UrlEncode(bytes) {
-  let str = btoa(String.fromCharCode(...bytes));
-  return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-function randomString(len = 64) {
-  const arr = new Uint8Array(len);
-  crypto.getRandomValues(arr);
-  return base64UrlEncode(arr);
-}
+/* PKCE Auth */
+async function sha256(plain) { const enc = new TextEncoder().encode(plain); const buf = await crypto.subtle.digest('SHA-256', enc); return new Uint8Array(buf); }
+function base64UrlEncode(bytes) { let str = btoa(String.fromCharCode(...bytes)); return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function randomString(len = 64) { const arr = new Uint8Array(len); crypto.getRandomValues(arr); return base64UrlEncode(arr); }
 async function beginLogin() {
   const codeVerifier = randomString(64);
   const state = randomString(16);
@@ -136,46 +121,30 @@ async function refreshAccessToken() {
 }
 async function getValidAccessToken() {
   if (accessToken && Date.now() < tokenExpiresAt) return accessToken;
-  if (refreshToken) {
-    const tok = await refreshAccessToken();
-    saveTokens(tok);
-    return accessToken;
-  }
+  if (refreshToken) { const tok = await refreshAccessToken(); saveTokens(tok); return accessToken; }
   return null;
 }
 
-/* -------------------- Web API helper -------------------- */
+/* Web API helper */
 async function spFetch(path, init = {}) {
   const token = await getValidAccessToken();
   if (!token) throw new Error('Not authenticated');
   const res = await fetch(`https://api.spotify.com/v1${path}`, {
     ...init,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...(init.headers || {})
-    }
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...(init.headers || {}) }
   });
   if (res.status === 204) return null;
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Spotify API ${res.status}: ${text}`);
-  }
+  if (!res.ok) { const text = await res.text(); throw new Error(`Spotify API ${res.status}: ${text}`); }
   return res.json();
 }
 
-/* -------------------- Player -------------------- */
+/* Player */
 function setupPlayer() {
   return new Promise((resolve, reject) => {
-    if (!window.Spotify || !window.Spotify.Player) {
-      reject(new Error('Web Playback SDK not loaded'));
-      return;
-    }
+    if (!window.Spotify || !window.Spotify.Player) { reject(new Error('Web Playback SDK not loaded')); return; }
     player = new Spotify.Player({
       name: 'WW Visualizer',
-      getOAuthToken: async cb => {
-        try { cb(await getValidAccessToken()); } catch { cb(null); }
-      },
+      getOAuthToken: async cb => { try { cb(await getValidAccessToken()); } catch { cb(null); } },
       volume: 0.8
     });
     player.addListener('ready', ({ device_id }) => { deviceId = device_id; logStatus('Player ready'); resolve(); });
@@ -184,9 +153,7 @@ function setupPlayer() {
       if (state) {
         playPauseBtn.textContent = state.paused ? '▶️' : '⏸️';
         const tr = state.track_window?.current_track;
-        if (tr?.id && tr.id !== currentTrackId) {
-          onTrackChangedFromState(tr);
-        }
+        if (tr?.id && tr.id !== currentTrackId) onTrackChangedFromState(tr);
       }
     });
     player.addListener('initialization_error', ({ message }) => console.error('init_error', message));
@@ -195,10 +162,7 @@ function setupPlayer() {
     player.connect();
   });
 }
-async function transferPlayback() {
-  if (!deviceId) return;
-  await spFetch('/me/player', { method: 'PUT', body: JSON.stringify({ device_ids: [deviceId], play: false }) });
-}
+async function transferPlayback() { if (!deviceId) return; await spFetch('/me/player', { method: 'PUT', body: JSON.stringify({ device_ids: [deviceId], play: false }) }); }
 async function onTrackChangedFromState(tr) {
   currentTrackId = tr.id;
   const art = tr.album?.images?.[0]?.url;
@@ -238,7 +202,7 @@ async function getCurrentlyPlaying() {
   } catch (e) { console.error(e); return null; }
 }
 
-/* -------------------- Search -------------------- */
+/* Search */
 async function searchTracks(q) {
   const params = new URLSearchParams({ q, type: 'track', limit: '12' });
   const data = await spFetch(`/search?${params.toString()}`);
@@ -261,14 +225,12 @@ function renderResults(items) {
         <a href="${t.external_urls?.spotify}" target="_blank" rel="noopener">Open</a>
       </div>
     `;
-    li.querySelector('button.primary').addEventListener('click', async () => {
-      await playTrackUri(t.uri);
-    });
+    li.querySelector('button.primary').addEventListener('click', async () => { await playTrackUri(t.uri); });
     resultsEl.appendChild(li);
   }
 }
 
-/* -------------------- Analysis mapping and timeline -------------------- */
+/* Analysis mapping */
 async function fetchAnalysisForTrack(trackId) {
   try {
     currentAnalysis = await spFetch(`/audio-analysis/${trackId}`);
@@ -277,10 +239,7 @@ async function fetchAnalysisForTrack(trackId) {
     lastPosMs = 0;
     const tempo = currentAnalysis.track?.tempo || 120;
     viz.setTempo(tempo);
-  } catch (e) {
-    console.error('analysis error', e);
-    currentAnalysis = null;
-  }
+  } catch (e) { console.error('analysis error', e); currentAnalysis = null; }
 }
 function stepAnalysisTriggers(prevMs, nowMs) {
   if (!currentAnalysis) return;
@@ -298,7 +257,7 @@ function stepAnalysisTriggers(prevMs, nowMs) {
   sectionIdx = pass(currentAnalysis.sections || [], sectionIdx, 'section', (t, obj) => viz.onSection(obj));
 }
 
-/* -------------------- Colors -------------------- */
+/* Colors */
 function applyPaletteFromAlbum() {
   try {
     const pal = colorThief.getPalette(albumArtEl, 6);
@@ -307,20 +266,13 @@ function applyPaletteFromAlbum() {
     const palette = pal.map(toHex);
     const accent = palette[0] || '#1db954';
     document.documentElement.style.setProperty('--accent', accent);
-    viz.setPalette({
-      dominant: toHex(dom),
-      accent,
-      palette
-    });
-  } catch (e) {
-    // ignore if CORS blocks
-  }
+    viz.setPalette({ dominant: toHex(dom), accent, palette });
+  } catch {}
 }
 
-/* -------------------- Events & Boot -------------------- */
+/* Events & Boot */
 loginBtn.addEventListener('click', () => beginLogin().catch(e => alert(e.message)));
 logoutBtn.addEventListener('click', () => { clearTokens(); location.reload(); });
-
 prevBtn.addEventListener('click', async () => { await spFetch('/me/player/previous', { method: 'POST' }).catch(console.error); });
 nextBtn.addEventListener('click', async () => { await spFetch('/me/player/next', { method: 'POST' }).catch(console.error); });
 playPauseBtn.addEventListener('click', async () => {
@@ -328,7 +280,6 @@ playPauseBtn.addEventListener('click', async () => {
   if (state?.paused) await spFetch('/me/player/play', { method: 'PUT' }).catch(console.error);
   else await spFetch('/me/player/pause', { method: 'PUT' }).catch(console.error);
 });
-
 searchForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const q = searchInput.value.trim();
@@ -339,7 +290,6 @@ searchForm.addEventListener('submit', async (e) => {
   if (id) { await playTrackUri(`spotify:track:${id}`); return; }
   try { renderResults(await searchTracks(q)); } catch (err) { alert('Search failed: ' + err.message); }
 });
-
 async function handleRedirect() {
   const url = new URL(window.location.href);
   const code = url.searchParams.get('code');
@@ -357,7 +307,6 @@ async function handleRedirect() {
     } catch (e) { alert(e.message); }
   }
 }
-
 async function ensurePlayerReady() {
   if (player && deviceId) return;
   await new Promise(resolve => {
@@ -370,13 +319,7 @@ async function ensurePlayerReady() {
   loginBtn.hidden = true; logoutBtn.hidden = false;
   setButtonsEnabled(true);
 }
-
-async function afterAuth() {
-  setButtonsEnabled(false);
-  await ensurePlayerReady();
-  await getCurrentlyPlaying();
-}
-
+async function afterAuth() { setButtonsEnabled(false); await ensurePlayerReady(); await getCurrentlyPlaying(); }
 function animationLoop() {
   const run = async () => {
     const state = player ? await player.getCurrentState() : null;
@@ -388,17 +331,9 @@ function animationLoop() {
   };
   requestAnimationFrame(run);
 }
-
-/* Pro control hooks */
 presetSelect.addEventListener('change', () => viz.applyPreset(presetSelect.value));
-savePresetBtn.addEventListener('click', () => {
-  const name = prompt('Preset name to save:', 'custom');
-  if (name) viz.savePreset(name);
-});
-sceneStackSelect.addEventListener('change', () => {
-  viz.setSceneStack(sceneStackSelect.value);
-  scenePill.textContent = `Scene stack: ${viz.describeStack()}`;
-});
+savePresetBtn.addEventListener('click', () => { const name = prompt('Preset name to save:', 'custom'); if (name) viz.savePreset(name); });
+sceneStackSelect.addEventListener('change', () => { viz.setSceneStack(sceneStackSelect.value); scenePill.textContent = `Scene stack: ${viz.describeStack()}`; });
 [bloomStrength, dofStrength, grainAmount, chromaticOffset].forEach(input => {
   input.addEventListener('input', () => viz.tunePost({
     bloom: parseFloat(bloomStrength.value),
@@ -410,22 +345,14 @@ sceneStackSelect.addEventListener('change', () => {
 
 async function boot() {
   loadTokensFromStorage();
-  viz.init(); // create renderer and scenes
+  viz.init();
   viz.applyPreset('default');
   scenePill.textContent = `Scene stack: ${viz.describeStack()}`;
-
   if (accessToken) {
-    try {
-      await getValidAccessToken();
-      logStatus('Authenticated');
-      loginBtn.hidden = true; logoutBtn.hidden = false;
-      await afterAuth();
-    } catch { clearTokens(); }
-  } else {
-    logStatus('Not authenticated');
-  }
+    try { await getValidAccessToken(); logStatus('Authenticated'); loginBtn.hidden = true; logoutBtn.hidden = false; await afterAuth(); }
+    catch { clearTokens(); }
+  } else { logStatus('Not authenticated'); }
   await handleRedirect();
   animationLoop();
 }
-
 boot();

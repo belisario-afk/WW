@@ -36,14 +36,9 @@ void main(){
 }
 `;
 
-const vert = `
-varying vec2 vUv;
-void main(){
-  vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0);
-}
-`;
+const vert = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 
-export class AuroraScene {
+export default class AuroraScene {
   constructor() {
     this.scene = new THREE.Scene();
     this.camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
@@ -87,9 +82,7 @@ export class AuroraScene {
   setTempo() {}
   onTatum(){ this.pulse = Math.min(1, this.pulse + 0.25); }
 
-  resize(w,h) {
-    if (this.mesh) this.mesh.material.uniforms.uRes.value.set(w,h);
-  }
+  resize(w,h) { if (this.mesh) this.mesh.material.uniforms.uRes.value.set(w,h); }
 
   update(dt, t) {
     if (this.mesh) {
@@ -99,8 +92,5 @@ export class AuroraScene {
     }
   }
 
-  renderToTarget(renderer, target) {
-    renderer.setRenderTarget(target);
-    renderer.render(this.scene, this.camera);
-  }
+  renderToTarget(renderer, target) { renderer.setRenderTarget(target); renderer.render(this.scene, this.camera); }
 }

@@ -30,7 +30,7 @@ void main(){
 
 const vert = `varying vec2 vUv; void main(){ vUv=uv; gl_Position = vec4(position.xy,0.0,1.0); }`;
 
-export class KaleidoScene {
+export default class KaleidoScene {
   constructor() {
     this.scene = new THREE.Scene();
     this.camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
@@ -79,8 +79,5 @@ export class KaleidoScene {
     this.mesh.material.uniforms.uTime.value = t;
     this.mesh.material.uniforms.uRadius.value = THREE.MathUtils.lerp(this.mesh.material.uniforms.uRadius.value, 1.15, 0.05);
   }
-  renderToTarget(renderer, target) {
-    renderer.setRenderTarget(target);
-    renderer.render(this.scene, this.camera);
-  }
+  renderToTarget(renderer, target) { renderer.setRenderTarget(target); renderer.render(this.scene, this.camera); }
 }

@@ -11,7 +11,7 @@ function mkRibbon(color) {
   return line;
 }
 
-export class RibbonsScene {
+export default class RibbonsScene {
   constructor() {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.1, 20);
@@ -44,9 +44,7 @@ export class RibbonsScene {
   setAlbumTexture() {}
   setAnalysis() {}
   setTempo() {}
-  onBeat(){
-    this.ribbons.forEach(r => r.material.opacity = 1.0);
-  }
+  onBeat(){ this.ribbons.forEach(r => r.material.opacity = 1.0); }
 
   resize(w,h){ this.camera.aspect = w/h; this.camera.updateProjectionMatrix(); }
 
@@ -72,8 +70,5 @@ export class RibbonsScene {
     }
   }
 
-  renderToTarget(renderer, target) {
-    renderer.setRenderTarget(target);
-    renderer.render(this.scene, this.camera);
-  }
+  renderToTarget(renderer, target) { renderer.setRenderTarget(target); renderer.render(this.scene, this.camera); }
 }

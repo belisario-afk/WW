@@ -3,7 +3,7 @@
   --panel: #11111a;
   --text: #e9e9f0;
   --muted: #9aa0a6;
-  --accent: #1db954; /* dynamic from album */
+  --accent: #1db954;
   --ring: rgba(29,185,84,0.35);
 }
 
@@ -48,7 +48,7 @@ button.ghost { background: transparent; border-color: rgba(255,255,255,0.2); }
   border-right: 1px solid rgba(255,255,255,0.06);
 }
 .viz3d { position: absolute; inset: 0; }
-#albumArt { display: none; } /* album art is texture only */
+#albumArt { display: none; }
 
 .overlay.hud {
   position: absolute; inset: 0; pointer-events: none;
