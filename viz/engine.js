@@ -11,14 +11,17 @@ import {
   DepthOfFieldEffect
 } from 'https://esm.sh/postprocessing@6.35.3?deps=three@0.160.0';
 
-import AuroraScene from './scenes/aurora.js';
-import KaleidoScene from './scenes/kaleidoscope.js';
-import TunnelScene from './scenes/tunnel.js';
-import VoronoiScene from './scenes/voronoi.js';
-import RibbonsScene from './scenes/ribbons.js';
-import CoversScene from './scenes/covers.js';
+// IMPORTANT: default imports with cache-busting
+import AuroraScene from './scenes/aurora.js?v=4';
+import KaleidoScene from './scenes/kaleidoscope.js?v=4';
+import TunnelScene from './scenes/tunnel.js?v=4';
+import VoronoiScene from './scenes/voronoi.js?v=4';
+import RibbonsScene from './scenes/ribbons.js?v=4';
+import CoversScene from './scenes/covers.js?v=4';
 
 export class VizEngine {
+  /* unchanged implementation from your latest v=3, omitted for brevity */
+}
   constructor(container) {
     this.container = container;
     this.renderer = null;

@@ -59,7 +59,7 @@ export default class KaleidoScene {
   }
 
   _fallbackTexture() {
-    const data = new Uint8Array([29,185,84,255]); // RGBA
+    const data = new Uint8Array([29,185,84,255]);
     const tex = new THREE.DataTexture(data, 1, 1, THREE.RGBAFormat);
     tex.needsUpdate = true;
     tex.colorSpace = THREE.SRGBColorSpace;

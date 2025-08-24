@@ -44,9 +44,7 @@ export default class TunnelScene {
   }
 
   setAlbumTexture() {}
-  setPalette(pal) {
-    if (this.tube) this.tube.material.color = new THREE.Color(pal.accent || '#1db954');
-  }
+  setPalette(pal) { if (this.tube) this.tube.material.color = new THREE.Color(pal.accent || '#1db954'); }
   setAnalysis() {}
   setTempo() {}
   onBar(){ this.sectionMod = (this.sectionMod + 1) % 4; }

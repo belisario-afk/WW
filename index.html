@@ -105,35 +105,24 @@
     <small>Requires Spotify account. Web Playback SDK requires Premium.</small>
   </footer>
 
-  <!-- Color extraction for album-art-driven palettes (no SRI to avoid CDN hash mismatches) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.4.0/color-thief.umd.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
-  <!-- Define the SDK-ready callback BEFORE loading the SDK -->
   <script>
     window.__spotifySDKReady = false;
-    window.onSpotifyWebPlaybackSDKReady = function () {
-      window.__spotifySDKReady = true;
-    };
+    window.onSpotifyWebPlaybackSDKReady = function () { window.__spotifySDKReady = true; };
   </script>
   <script src="https://sdk.scdn.co/spotify-player.js" async></script>
 
   <script>
-    // App configuration (no secrets here)
     window.APP_CONFIG = {
       CLIENT_ID: "0b064e7fc39a4ce98123f0a8a6b5aea7",
       REDIRECT_URI: "https://belisario-afk.github.io/WW/",
       SCOPES: [
-        "streaming",
-        "user-read-email",
-        "user-read-private",
-        "user-read-playback-state",
-        "user-modify-playback-state",
-        "user-read-currently-playing"
+        "streaming","user-read-email","user-read-private",
+        "user-read-playback-state","user-modify-playback-state","user-read-currently-playing"
       ]
     };
   </script>
 
-  <!-- Cache-busted module -->
-  <script type="module" src="./app.js?v=3"></script>
+  <script type="module" src="./app.js?v=4"></script>
 </body>
 </html>

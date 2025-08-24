@@ -1,5 +1,5 @@
 // App: Spotify PKCE auth + Web Playback + Pro Visualizer Engine
-import { VizEngine } from './viz/engine.js?v=3';
+import { VizEngine } from './viz/engine.js?v=4';
 
 const cfg = window.APP_CONFIG;
 const statusEl = document.getElementById('status');
