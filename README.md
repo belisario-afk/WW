@@ -1,62 +1,53 @@
-# WW — Spotify Player + Visualizer
+# WW — Spotify Player + Pro Visualizer
 
 A static GitHub Pages site that lets you:
 - Log in with Spotify using Authorization Code with PKCE (no client secret).
 - Use the Web Playback SDK (Spotify Premium required) to play tracks in your browser.
 - Search tracks and control playback.
-- See a music visualizer whose colors are extracted from the album cover and animation follows the track’s audio analysis.
+- Enjoy a pro-grade, multi-scene WebGL visualizer that reacts to Spotify Audio Analysis.
 
-## Quick start
+## Visual effects and scenes
 
-1. In your Spotify Developer Dashboard:
+- Fluid aurora/ink and flow fields: noise-driven shader with additive glow (Aurora).
+- Kaleidoscope and mirror rooms: symmetry shader using album-art texture with BPM/section-driven segment switching (Kaleido).
+- 3D tunnels and camera paths: cylinder tunnel with parallax starfield and rail motion (Tunnel).
+- Voronoi/ripple surfaces: beat-synced ripples layered onto cellular crackle (Voronoi).
+- Waveform ribbons and silk trails: layered parametric ribbons with motion blur via post-processing (Ribbons).
+- Floating covers + DOF: depth-sorted album covers with soft opacity pops on beat and subtle parallax (Covers).
+- Scene stack compositor: multiple scenes are rendered off-screen and blended in a final composite pass. Use the “Scene Stack” selector to isolate a scene or render all combined.
+
+## Pro controls and post-processing
+
+- Timeline/keyframes: scenes respond to beats, bars, tatums, sections from Spotify Audio Analysis (mapped in `viz/engine.js` with onBeat/onBar/onTatum/onSection). You can save presets for post processing and stack.
+- Post FX pipeline: bloom, vignette, grain, chromatic aberration, and depth of field (tunable in UI).
+- Camera system: each 3D scene (Tunnel, Ribbons, Covers) animates camera on rails, with subtle shake; mouse parallax in scenes where applicable.
+- Color engines: album art palette extraction (Color Thief) drives accent and scene palettes.
+
+## Setup
+
+1. Spotify Developer Dashboard:
    - Add Redirect URI: `https://belisario-afk.github.io/WW/`
-   - Make sure to rotate/delete any leaked client secret. This app uses PKCE and does not need a client secret.
-   - If you see any “Website URL” or “Allowlist” for the Web Playback SDK, add:
-     - `https://belisario-afk.github.io`
-     - `https://belisario-afk.github.io/WW`
+   - Do not use your client secret in a static site. Rotate any leaked secret. This app uses PKCE and does not require a client secret.
 
-2. Update `index.html` if you change anything:
-   - `CLIENT_ID` (already set to yours).
-   - `REDIRECT_URI` (must exactly match what you added in the Dashboard).
+2. GitHub Pages:
+   - Settings → Pages → Build and deployment
+   - Source: Deploy from a branch
+   - Branch: `main`, Folder: `/ (root)`
 
-3. Enable GitHub Pages:
-   - Go to your repo Settings → Pages → Build and deployment.
-   - Source: `Deploy from a branch`
-   - Branch: `main` and folder `/ (root)`
-   - Save. Your site will be at `https://belisario-afk.github.io/WW/`
+3. Files:
+   - `index.html` (module-based app)
+   - `style.css`
+   - `app.js`
+   - `viz/engine.js`
+   - `viz/scenes/*.js`
+   - `README.md`
+   - Optional: `404.html` to redirect to root.
 
-4. Commit and push the files:
-   - index.html
-   - style.css
-   - app.js
-   - README.md
+4. Open `https://belisario-afk.github.io/WW/` and log in.
 
-5. Open your site and click “Log in with Spotify”.
-   - After login, the page will redirect back.
-   - Click play on a search result to start playback on the WW Visualizer “device”.
+## Notes
 
-## Notes and limitations
-
-- Spotify Web Playback SDK requires a Spotify Premium account to play audio.
-- The SDK does not expose raw audio to the Web Audio API. The visualizer uses:
-  - Album art colors (via Color Thief) for palette.
-  - Spotify’s audio analysis endpoint to approximate intensity over time and animate bars/rings.
-- If album art fails CORS color extraction, the palette falls back to default accent colors.
-- If you change the repository name or use a custom domain, update the `REDIRECT_URI`.
-- Do not include or commit any client secrets in this repo.
-
-## Local testing
-
-You can test locally with a simple server (authorization still redirects to GitHub Pages unless you add localhost as a redirect URI):
-
-```bash
-python3 -m http.server 8080
-# then open http://localhost:8080
-```
-
-If you want localhost login to work, add `http://localhost:8080/` to your Redirect URIs and update `REDIRECT_URI` accordingly.
-
-## Security
-
-This app uses Authorization Code with PKCE so no client secret is embedded. If you previously exposed your secret, rotate it in the Spotify Dashboard immediately.
-"# WW" 
+- Web Playback SDK requires a Spotify Premium account to output audio in the browser.
+- No raw audio is routed to Web Audio; animation is driven by the player’s position and Spotify Audio Analysis events (beats/bars/etc.).
+- If Color Thief cannot sample album art due to CORS, a default palette is used.
+- Switch scenes from the “Scene Stack” dropdown. Save custom post settings with “Save Preset.”

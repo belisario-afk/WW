@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WW — Spotify Player + Visualizer</title>
-  <meta name="description" content="Spotify login, player controls, search, and an album-color-matched music visualizer." />
+  <title>WW — Spotify Visualizer (Pro Scenes)</title>
+  <meta name="description" content="Spotify login + player with a pro-grade multi-scene WebGL visualizer." />
   <link rel="preconnect" href="https://i.scdn.co" crossorigin>
   <link rel="preconnect" href="https://api.spotify.com" crossorigin>
   <link rel="preconnect" href="https://accounts.spotify.com" crossorigin>
@@ -28,50 +28,91 @@
     </div>
   </header>
 
-  <main class="layout">
-    <section class="now-playing">
-      <div class="art-wrap">
-        <img id="albumArt" alt="Album art" crossorigin="anonymous" />
-        <canvas id="viz" width="640" height="640" aria-label="Music visualizer" role="img"></canvas>
-      </div>
-      <div class="track-meta">
-        <h1 id="trackName">—</h1>
-        <p id="artistName" class="muted">—</p>
-        <div class="controls">
-          <button id="prevBtn" title="Previous" disabled>⏮</button>
-          <button id="playPauseBtn" title="Play/Pause" disabled>▶️</button>
-          <button id="nextBtn" title="Next" disabled>⏭</button>
+  <main class="shell">
+    <section class="stage">
+      <div id="viz3d" class="viz3d" aria-label="Music visualizer" role="img"></div>
+      <img id="albumArt" alt="Album art" crossorigin="anonymous" />
+      <div class="overlay hud">
+        <div class="track">
+          <div class="titles">
+            <div id="trackName" class="title">—</div>
+            <div id="artistName" class="subtitle">—</div>
+          </div>
+          <div class="controls">
+            <button id="prevBtn" title="Previous" disabled>⏮</button>
+            <button id="playPauseBtn" title="Play/Pause" disabled>▶️</button>
+            <button id="nextBtn" title="Next" disabled>⏭</button>
+          </div>
         </div>
-        <div class="status" id="status">Not authenticated</div>
+        <div class="statusbar">
+          <span id="status">Not authenticated</span>
+          <span class="pill" id="scenePill">Scene stack: Aurora + Tunnel + Kaleido + Ribbons + Covers</span>
+        </div>
       </div>
     </section>
 
-    <section class="search">
-      <form id="searchForm">
-        <input id="searchInput" type="search" placeholder="Search tracks or paste a Spotify URL…" autocomplete="off" />
-        <button class="primary" type="submit">Search</button>
-      </form>
-      <ul id="results" class="results"></ul>
-    </section>
+    <aside class="panel">
+      <section class="search">
+        <form id="searchForm">
+          <input id="searchInput" type="search" placeholder="Search tracks or paste a Spotify URL…" autocomplete="off" />
+          <button class="primary" type="submit">Search</button>
+        </form>
+        <ul id="results" class="results"></ul>
+      </section>
+
+      <section class="pro">
+        <h2>Pro Controls</h2>
+        <div class="grid">
+          <label>Preset
+            <select id="presetSelect">
+              <option value="default">Default</option>
+              <option value="cinematic">Cinematic</option>
+              <option value="neon">Neon</option>
+              <option value="warm">Warm Glow</option>
+              <option value="cool">Cool Night</option>
+            </select>
+          </label>
+          <label>Bloom
+            <input id="bloomStrength" type="range" min="0" max="2" step="0.01" value="0.9" />
+          </label>
+          <label>DOF
+            <input id="dofStrength" type="range" min="0" max="1" step="0.01" value="0.35" />
+          </label>
+          <label>Grain
+            <input id="grainAmount" type="range" min="0" max="0.5" step="0.005" value="0.04" />
+          </label>
+          <label>Chromatic
+            <input id="chromaticOffset" type="range" min="0" max="0.01" step="0.0005" value="0.0035" />
+          </label>
+          <label>Scene Stack
+            <select id="sceneStack">
+              <option value="all">All (Composited)</option>
+              <option value="aurora">Aurora</option>
+              <option value="tunnel">Tunnel</option>
+              <option value="kaleido">Kaleidoscope</option>
+              <option value="voronoi">Voronoi/Ripples</option>
+              <option value="ribbons">Ribbons</option>
+              <option value="covers">Floating Covers</option>
+            </select>
+          </label>
+          <button id="savePreset" class="ghost" type="button">Save Preset</button>
+        </div>
+      </section>
+    </aside>
   </main>
 
   <footer class="footer">
-    <small>Built for GitHub Pages. Spotify Premium required for Web Playback SDK.</small>
+    <small>Requires Spotify account. Web Playback SDK requires Premium.</small>
   </footer>
 
-   <!-- Color extraction for album-art-driven palettes -->
-  <script
-    src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.4.0/color-thief.umd.js"
-    integrity="sha512-r2yd2GP87iHAsf2K+ARvu01VtR7Bs04la0geDLbFlB/38AruUbA5qfmtXwXx6FZBQGJRogiPtEqtfk/fnQfaYA=="
-    crossorigin="anonymous"
-    referrerpolicy="no-referrer"></script>
+  <!-- Color extraction for album-art-driven palettes (no SRI to avoid CDN hash mismatches) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.4.0/color-thief.umd.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
   <!-- Define the SDK-ready callback BEFORE loading the SDK -->
   <script>
     window.__spotifySDKReady = false;
     window.onSpotifyWebPlaybackSDKReady = function () {
       window.__spotifySDKReady = true;
-      // No-op here; app.js will wait for this flag and then set up the player.
     };
   </script>
   <script src="https://sdk.scdn.co/spotify-player.js" async></script>
@@ -91,4 +132,8 @@
       ]
     };
   </script>
-  <script src="./app.js"></script>
+
+  <!-- App as an ES module -->
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
