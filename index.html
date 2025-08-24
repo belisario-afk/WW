@@ -3,56 +3,103 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WW — Spotify Visualizer (Pro Scenes)</title>
-  <meta name="description" content="Spotify login + player with a pro-grade multi-scene WebGL visualizer." />
+  <title>WW — Advanced Spotify Visualizer</title>
+  <meta name="description" content="Premium multi-scene WebGL visualizer with smooth post, director-driven scene transitions, and Spotify PKCE login." />
   <link rel="preconnect" href="https://i.scdn.co" crossorigin>
   <link rel="preconnect" href="https://api.spotify.com" crossorigin>
   <link rel="preconnect" href="https://accounts.spotify.com" crossorigin>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" />
-        <path d="M6 9c4-2 8-2 12 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-        <path d="M6 12c4-1.5 8-1.5 12 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-        <path d="M6 15c4-1 8-1 12 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-      </svg>
-      <span>WW Visualizer</span>
-    </div>
-
-    <div class="auth">
-      <button id="loginBtn" class="primary">Log in with Spotify</button>
-      <button id="logoutBtn" class="ghost" hidden>Log out</button>
-    </div>
-  </header>
-
-  <main class="shell">
-    <section class="stage">
+  <div class="app">
+    <div id="stage" class="stage">
       <div id="viz3d" class="viz3d" aria-label="Music visualizer" role="img"></div>
       <img id="albumArt" alt="Album art" crossorigin="anonymous" />
-      <div class="overlay hud">
-        <div class="track">
-          <div class="titles">
+      <header class="glass topbar">
+        <div class="brand">
+          <span class="logo">WW</span>
+          <span class="name">Visualizer</span>
+        </div>
+        <div class="actions">
+          <button id="togglePanel" aria-label="Settings" class="icon-btn">⚙️</button>
+          <button id="loginBtn" class="primary">Log in</button>
+          <button id="logoutBtn" class="ghost" hidden>Log out</button>
+        </div>
+      </header>
+
+      <div class="hud glass">
+        <div class="meta">
+          <div class="art" id="artWrap">
+            <img id="hudArt" alt="" />
+          </div>
+          <div class="text">
             <div id="trackName" class="title">—</div>
             <div id="artistName" class="subtitle">—</div>
           </div>
-          <div class="controls">
-            <button id="prevBtn" title="Previous" disabled>⏮</button>
-            <button id="playPauseBtn" title="Play/Pause" disabled>▶️</button>
-            <button id="nextBtn" title="Next" disabled>⏭</button>
-          </div>
         </div>
-        <div class="statusbar">
-          <span id="status">Not authenticated</span>
-          <span class="pill" id="scenePill">Scene stack: Aurora + Tunnel + Kaleido + Ribbons + Covers</span>
+        <div class="transport">
+          <button id="prevBtn" title="Previous" disabled>⏮</button>
+          <button id="playPauseBtn" title="Play/Pause" disabled>▶️</button>
+          <button id="nextBtn" title="Next" disabled>⏭</button>
         </div>
       </div>
-    </section>
 
-    <aside class="panel">
-      <section class="search">
+      <footer class="status glass">
+        <div id="status">Not authenticated</div>
+        <div id="scenePill" class="pill">Director: Auto</div>
+      </footer>
+    </div>
+
+    <aside id="panel" class="panel glass">
+      <div class="panel-header">
+        <div>Settings</div>
+        <button id="closePanel" class="icon-btn" aria-label="Close">✖️</button>
+      </div>
+
+      <section class="group">
+        <label>Visual Theme
+          <select id="themeSelect">
+            <option value="auto">Auto (Album)</option>
+            <option value="neon">Neon Pulse</option>
+            <option value="warm">Warm Sunset</option>
+            <option value="cool">Cool Night</option>
+            <option value="mono">Mono Noir</option>
+          </select>
+        </label>
+        <label>Scene Mode
+          <select id="sceneMode">
+            <option value="director">Director (Auto)</option>
+            <option value="all">All (Composite)</option>
+            <option value="aurora">Aurora</option>
+            <option value="flow">Flowfield</option>
+            <option value="tunnel">Tunnel</option>
+            <option value="kaleido">Kaleidoscope</option>
+            <option value="voronoi">Voronoi</option>
+            <option value="ribbons">Ribbons</option>
+            <option value="covers">Covers</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="group">
+        <label>Bloom
+          <input id="bloomStrength" type="range" min="0" max="2" step="0.01" value="1.2" />
+        </label>
+        <label>Chromatic
+          <input id="chromaticOffset" type="range" min="0" max="0.01" step="0.0005" value="0.003" />
+        </label>
+        <label>Grain
+          <input id="grainAmount" type="range" min="0" max="0.5" step="0.005" value="0.05" />
+        </label>
+        <label>Vignette
+          <input id="vignetteStrength" type="range" min="0" max="1" step="0.01" value="0.35" />
+        </label>
+        <label>Render Scale
+          <input id="renderScale" type="range" min="0.5" max="1" step="0.01" value="1" />
+        </label>
+      </section>
+
+      <section class="group">
         <form id="searchForm">
           <input id="searchInput" type="search" placeholder="Search tracks or paste a Spotify URL…" autocomplete="off" />
           <button class="primary" type="submit">Search</button>
@@ -60,55 +107,21 @@
         <ul id="results" class="results"></ul>
       </section>
 
-      <section class="pro">
-        <h2>Pro Controls</h2>
-        <div class="grid">
-          <label>Preset
-            <select id="presetSelect">
-              <option value="default">Default</option>
-              <option value="cinematic">Cinematic</option>
-              <option value="neon">Neon</option>
-              <option value="warm">Warm Glow</option>
-              <option value="cool">Cool Night</option>
-            </select>
-          </label>
-          <label>Bloom
-            <input id="bloomStrength" type="range" min="0" max="2" step="0.01" value="0.9" />
-          </label>
-          <label>DOF
-            <input id="dofStrength" type="range" min="0" max="1" step="0.01" value="0.35" />
-          </label>
-          <label>Grain
-            <input id="grainAmount" type="range" min="0" max="0.5" step="0.005" value="0.04" />
-          </label>
-          <label>Chromatic
-            <input id="chromaticOffset" type="range" min="0" max="0.01" step="0.0005" value="0.0035" />
-          </label>
-          <label>Scene Stack
-            <select id="sceneStack">
-              <option value="all">All (Composited)</option>
-              <option value="aurora">Aurora</option>
-              <option value="tunnel">Tunnel</option>
-              <option value="kaleido">Kaleidoscope</option>
-              <option value="voronoi">Voronoi/Ripples</option>
-              <option value="ribbons">Ribbons</option>
-              <option value="covers">Floating Covers</option>
-            </select>
-          </label>
-          <button id="savePreset" class="ghost" type="button">Save Preset</button>
-        </div>
+      <section class="group tiny">
+        <small>Tip: Use “Director (Auto)” for smooth, music-aware scene changes. Premium required for Web Playback audio.</small>
       </section>
     </aside>
-  </main>
+  </div>
 
-  <footer class="footer">
-    <small>Requires Spotify account. Web Playback SDK requires Premium.</small>
-  </footer>
-
+  <!-- Color Thief -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.4.0/color-thief.umd.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <!-- Spotify SDK ready flag -->
   <script>
     window.__spotifySDKReady = false;
-    window.onSpotifyWebPlaybackSDKReady = function () { window.__spotifySDKReady = true; };
+    window.onSpotifyWebPlaybackSDKReady = function () {
+      window.__spotifySDKReady = true;
+    };
   </script>
   <script src="https://sdk.scdn.co/spotify-player.js" async></script>
 
@@ -117,12 +130,16 @@
       CLIENT_ID: "0b064e7fc39a4ce98123f0a8a6b5aea7",
       REDIRECT_URI: "https://belisario-afk.github.io/WW/",
       SCOPES: [
-        "streaming","user-read-email","user-read-private",
-        "user-read-playback-state","user-modify-playback-state","user-read-currently-playing"
+        "streaming",
+        "user-read-email",
+        "user-read-private",
+        "user-read-playback-state",
+        "user-modify-playback-state",
+        "user-read-currently-playing"
       ]
     };
   </script>
 
-  <script type="module" src="./app.js?v=5"></script>
+  <script type="module" src="./app.js?v=7"></script>
 </body>
 </html>

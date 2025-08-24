@@ -1,318 +1,305 @@
-// VizEngine: Three.js multi-scene engine with post-processing and scene stack compositor
+// Advanced VizEngine: dynamic scenes, robust compositor with built-in post (bloom, CA, grain, vignette)
 import * as THREE from 'https://esm.sh/three@0.160.0';
 
 export class VizEngine {
-  constructor(container) {
+  constructor(container){
     this.container = container;
     this.renderer = null;
 
     this.width = 1; this.height = 1;
     this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    this.scale = 1.0;
 
-    // Compositor scene
+    // Composite scene
     this.scene = new THREE.Scene();
-    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    this.camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
     this.quad = null;
 
-    // Scene stack
+    // Layers
     this.scenes = {};
-    this.stack = ['aurora', 'tunnel', 'kaleido', 'ribbons', 'covers'];
     this.layers = {}; // id -> { scene, target, opacity }
+    this.stack = ['aurora', 'flow', 'tunnel', 'kaleido', 'voronoi', 'ribbons', 'covers'];
 
-    // Scene constructors (filled during init by dynamic imports)
-    this.SceneCtors = null;
+    // Final pass uniforms
+    this.finalMaterial = null;
 
-    // Post FX (module loaded dynamically)
-    this.PP = null;
-    this.composer = null;
-    this.post = { bloom: 0.9, dof: 0.35, grain: 0.04, chroma: 0.0035 };
-
-    // Album art and palette
+    // State & Inputs
     this.albumTexture = null;
-    this.palette = { dominant: '#1db954', accent: '#1db954', palette: ['#1db954', '#ffffff', '#222'] };
-
-    // Analysis and tempo
+    this.palette = { dominant:'#1db954', accent:'#1db954', palette:['#1db954','#ffffff','#232323'] };
     this.analysis = null;
     this.tempo = 120;
-
-    // Compositor uniforms/material
-    this.compositeMaterial = null;
-    this.blankTexture = null;
-
-    // UI helpers
-    this.mouse = new THREE.Vector2(0, 0);
+    this.mouse = new THREE.Vector2(0,0);
     this.timeStart = performance.now();
 
+    // Mode
+    this.mode = 'director'; // 'director' | 'all' | scene id
+    this.director = { lastSwitch: 0, minBars: 4, current: ['aurora','flow'], cursor:0 };
+
     // Events
-    this._bindResize = this._onResize.bind(this);
-    window.addEventListener('resize', this._bindResize);
-    window.addEventListener('mousemove', (e) => {
+    window.addEventListener('resize', ()=>this._onResize());
+    window.addEventListener('mousemove', (e)=>{
       const r = this.container.getBoundingClientRect();
-      this.mouse.set((e.clientX - r.left) / r.width * 2 - 1, (e.clientY - r.top) / r.height * -2 + 1);
-    }, { passive: true });
+      this.mouse.set((e.clientX - r.left)/r.width*2-1, (e.clientY - r.top)/r.height*-2+1);
+    }, { passive:true });
   }
 
-  async init() {
-    // Renderer
+  async init(){
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(this.pixelRatio);
     this.container.appendChild(this.renderer.domElement);
 
-    // Dynamically import postprocessing to avoid static import parse/CORS issues
-    this.PP = await import('https://esm.sh/postprocessing@6.35.3?deps=three@0.160.0');
-
-    // Dynamically import scenes; accept default or named class exports
-    const urls = {
-      aurora: './scenes/aurora.js?v=6',
-      kaleido: './scenes/kaleidoscope.js?v=6',
-      tunnel: './scenes/tunnel.js?v=6',
-      voronoi: './scenes/voronoi.js?v=6',
-      ribbons: './scenes/ribbons.js?v=6',
-      covers: './scenes/covers.js?v=6',
-    };
-    const mods = await Promise.all(Object.values(urls).map(u => import(u)));
-
-    const pickCtor = (mod, candidates) => {
-      // prefer default if present; else find first matching named export
-      if (mod && mod.default) return mod.default;
-      for (const name of candidates) if (mod && mod[name]) return mod[name];
-      throw new Error('Scene module missing expected export');
-    };
-
-    const keys = Object.keys(urls);
-    const ctors = {};
-    for (let i = 0; i < keys.length; i++) {
-      const k = keys[i];
-      const m = mods[i];
-      // map expected names per module
-      const candidates = {
-        aurora: ['AuroraScene'],
-        kaleido: ['KaleidoScene', 'KaleidoscopeScene'],
-        tunnel: ['TunnelScene'],
-        voronoi: ['VoronoiScene'],
-        ribbons: ['RibbonsScene'],
-        covers: ['CoversScene'],
-      }[k];
-      ctors[k] = pickCtor(m, candidates || []);
-    }
-    this.SceneCtors = ctors;
-
-    this._setupCompositor();
-    this._createScenes();
+    await this._loadScenes();
+    this._setupComposite();
+    this._createLayers();
     this._onResize();
   }
 
-  _setupCompositor() {
-    // 1x1 transparent fallback texture
-    this.blankTexture = new THREE.DataTexture(new Uint8Array([0,0,0,0]), 1, 1, THREE.RGBAFormat);
-    this.blankTexture.needsUpdate = true;
-    this.blankTexture.colorSpace = THREE.SRGBColorSpace;
+  async _loadScenes(){
+    const urls = {
+      aurora: './scenes/aurora.js?v=7',
+      kaleido: './scenes/kaleidoscope.js?v=7',
+      tunnel: './scenes/tunnel.js?v=7',
+      voronoi: './scenes/voronoi.js?v=7',
+      ribbons: './scenes/ribbons.js?v=7',
+      covers: './scenes/covers.js?v=7',
+      flow: './scenes/flowfield.js?v=7',
+    };
+    this.SceneCtors = {};
+    const keys = Object.keys(urls);
+    const mods = await Promise.all(keys.map(k => import(urls[k])));
 
-    this.compositeMaterial = new THREE.ShaderMaterial({
-      transparent: false,
-      uniforms: {
-        t0: { value: this.blankTexture },
-        t1: { value: this.blankTexture },
-        t2: { value: this.blankTexture },
-        t3: { value: this.blankTexture },
-        t4: { value: this.blankTexture },
-        opacity0: { value: 1.0 },
-        opacity1: { value: 0.9 },
-        opacity2: { value: 0.9 },
-        opacity3: { value: 0.9 },
-        opacity4: { value: 0.9 },
+    const pick = (m, names) => m?.default || names.map(n=>m?.[n]).find(Boolean);
+    const nameMap = {
+      aurora:['AuroraScene'], kaleido:['KaleidoScene','KaleidoscopeScene'], tunnel:['TunnelScene'],
+      voronoi:['VoronoiScene'], ribbons:['RibbonsScene'], covers:['CoversScene'], flow:['FlowfieldScene','FlowScene']
+    };
+    keys.forEach((k,i)=>{ const ctor = pick(mods[i], nameMap[k]); if(!ctor) throw new Error(`Scene ${k} missing export`); this.SceneCtors[k] = ctor; });
+  }
+
+  _setupComposite(){
+    const geo = new THREE.PlaneGeometry(2,2);
+    this.finalMaterial = new THREE.ShaderMaterial({
+      uniforms:{
+        t0:{value:null}, t1:{value:null}, t2:{value:null}, t3:{value:null}, t4:{value:null}, t5:{value:null}, t6:{value:null},
+        op0:{value:1}, op1:{value:0.9}, op2:{value:0.9}, op3:{value:0.9}, op4:{value:0.9}, op5:{value:0.9}, op6:{value:0.9},
+        uRes:{value:new THREE.Vector2(1,1)},
+        uTime:{value:0},
+        uBloom:{value:1.2},
+        uChroma:{value:0.003},
+        uGrain:{value:0.05},
+        uVignette:{value:0.35}
       },
       vertexShader: `
         varying vec2 vUv;
-        void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+        void main(){ vUv=uv; gl_Position = vec4(position.xy,0.0,1.0); }
       `,
       fragmentShader: `
         precision highp float;
         varying vec2 vUv;
-        uniform sampler2D t0; uniform float opacity0;
-        uniform sampler2D t1; uniform float opacity1;
-        uniform sampler2D t2; uniform float opacity2;
-        uniform sampler2D t3; uniform float opacity3;
-        uniform sampler2D t4; uniform float opacity4;
+        uniform sampler2D t0; uniform float op0;
+        uniform sampler2D t1; uniform float op1;
+        uniform sampler2D t2; uniform float op2;
+        uniform sampler2D t3; uniform float op3;
+        uniform sampler2D t4; uniform float op4;
+        uniform sampler2D t5; uniform float op5;
+        uniform sampler2D t6; uniform float op6;
+        uniform vec2 uRes;
+        uniform float uTime, uBloom, uChroma, uGrain, uVignette;
+
+        vec3 sampleCombined(vec2 uv){
+          vec3 c = vec3(0.0);
+          c += texture2D(t0, uv).rgb * op0;
+          c += texture2D(t1, uv).rgb * op1;
+          c += texture2D(t2, uv).rgb * op2;
+          c += texture2D(t3, uv).rgb * op3;
+          c += texture2D(t4, uv).rgb * op4;
+          c += texture2D(t5, uv).rgb * op5;
+          c += texture2D(t6, uv).rgb * op6;
+          return c;
+        }
+
+        float rnd(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
 
         void main(){
-          vec3 c = vec3(0.0);
-          c += texture2D(t0, vUv).rgb * opacity0;
-          c += texture2D(t1, vUv).rgb * opacity1;
-          c += texture2D(t2, vUv).rgb * opacity2;
-          c += texture2D(t3, vUv).rgb * opacity3;
-          c += texture2D(t4, vUv).rgb * opacity4;
-          gl_FragColor = vec4(c, 1.0);
+          // Chromatic aberration: offset per-channel along radial
+          vec2 center = vec2(0.5);
+          vec2 dir = normalize(vUv - center + 1e-6);
+          vec2 off = dir * uChroma;
+
+          vec3 c0 = sampleCombined(vUv + off);
+          vec3 c1 = sampleCombined(vUv);
+          vec3 c2 = sampleCombined(vUv - off);
+
+          vec3 color = vec3(c0.r, c1.g, c2.b);
+
+          // Lightweight bloom (small kernel)
+          vec2 px = 1.0 / uRes;
+          vec3 blur = vec3(0.0);
+          blur += sampleCombined(vUv + vec2(-2.0, 0.0)*px);
+          blur += sampleCombined(vUv + vec2( 2.0, 0.0)*px);
+          blur += sampleCombined(vUv + vec2( 0.0,-2.0)*px);
+          blur += sampleCombined(vUv + vec2( 0.0, 2.0)*px);
+          blur += sampleCombined(vUv + vec2( 1.5, 1.5)*px);
+          blur += sampleCombined(vUv + vec2(-1.5, 1.5)*px);
+          blur += sampleCombined(vUv + vec2( 1.5,-1.5)*px);
+          blur += sampleCombined(vUv + vec2(-1.5,-1.5)*px);
+          blur *= 0.125;
+          // threshold-ish glow
+          float lum = dot(color, vec3(0.2126,0.7152,0.0722));
+          vec3 glow = max(color - vec3(0.6), 0.0) + blur * 0.6;
+          color += glow * uBloom;
+
+          // Vignette
+          float d = distance(vUv, center);
+          float vig = smoothstep(1.0, 0.5, d + uVignette*0.5);
+          color *= vig;
+
+          // Grain
+          float n = rnd(vUv*vec2(uRes.x, uRes.y) + uTime*60.0) - 0.5;
+          color += n * uGrain;
+
+          // Tone
+          color = clamp(color, 0.0, 1.0);
+          gl_FragColor = vec4(color, 1.0);
         }
       `
     });
-    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.compositeMaterial);
-    this.scene.add(quad);
-    this.quad = quad;
-
-    // Post FX
-    const { EffectComposer, RenderPass, EffectPass, BloomEffect, VignetteEffect, NoiseEffect, ChromaticAberrationEffect, DepthOfFieldEffect } = this.PP;
-    this.composer = new EffectComposer(this.renderer);
-    this.composer.addPass(new RenderPass(this.scene, this.camera));
-
-    // Build the effect chain
-    const bloom = new BloomEffect({ intensity: this.post.bloom, luminanceThreshold: 0.2, luminanceSmoothing: 0.8 });
-    const vignette = new VignetteEffect({ darkness: 0.4, offset: 0.2 });
-    const grain = new NoiseEffect({ premultiply: true, blendFunction: 12 /* SOFT_LIGHT */ });
-    grain.blendMode.opacity.value = this.post.grain;
-    const chroma = new ChromaticAberrationEffect({ offset: new THREE.Vector2(this.post.chroma, 0) });
-    const dof = new DepthOfFieldEffect(this.camera, { focusDistance: 0.013, focalLength: 0.055, bokehScale: 2.0 });
-    dof.resolution.height = 720;
-    dof.resolution.scale = this.post.dof > 0 ? 1 : 0.5;
-    dof.blurPass.blurMaterial.multiBlur = true;
-    dof.blurPass.scale = Math.max(0.0001, this.post.dof);
-
-    const effectPass = new EffectPass(this.camera, bloom, vignette, grain, chroma, dof);
-    this.composer.addPass(effectPass);
+    this.quad = new THREE.Mesh(geo, this.finalMaterial);
+    this.scene.add(this.quad);
   }
 
-  _rebuildPost() {
-    if (!this.composer || !this.PP) return;
-    const { EffectPass, BloomEffect, VignetteEffect, NoiseEffect, ChromaticAberrationEffect, DepthOfFieldEffect } = this.PP;
-    while (this.composer.passes.length > 1) this.composer.passes.pop();
-    const bloom = new BloomEffect({ intensity: this.post.bloom, luminanceThreshold: 0.2, luminanceSmoothing: 0.8 });
-    const vignette = new VignetteEffect({ darkness: 0.4, offset: 0.2 });
-    const grain = new NoiseEffect({ premultiply: true, blendFunction: 12 });
-    grain.blendMode.opacity.value = this.post.grain;
-    const chroma = new ChromaticAberrationEffect({ offset: new THREE.Vector2(this.post.chroma, 0) });
-    const dof = new DepthOfFieldEffect(this.camera, { focusDistance: 0.013, focalLength: 0.055, bokehScale: 2.0 });
-    dof.resolution.height = 720;
-    dof.resolution.scale = this.post.dof > 0 ? 1 : 0.5;
-    dof.blurPass.blurMaterial.multiBlur = true;
-    dof.blurPass.scale = Math.max(0.0001, this.post.dof);
-    const effectPass = new EffectPass(this.camera, bloom, vignette, grain, chroma, dof);
-    this.composer.addPass(effectPass);
-  }
+  _createLayers(){
+    const makeTarget = ()=> new THREE.WebGLRenderTarget(this.width, this.height, { type: THREE.HalfFloatType, depthBuffer:false });
 
-  _createScenes() {
-    const makeTarget = () => new THREE.WebGLRenderTarget(this.width, this.height, { type: THREE.HalfFloatType, depthBuffer: false });
-
-    this.scenes.aurora = new this.SceneCtors.aurora();
-    this.scenes.kaleido = new this.SceneCtors.kaleido();
-    this.scenes.tunnel = new this.SceneCtors.tunnel();
-    this.scenes.voronoi = new this.SceneCtors.voronoi();
-    this.scenes.ribbons = new this.SceneCtors.ribbons();
-    this.scenes.covers = new this.SceneCtors.covers();
-
-    for (const key of Object.keys(this.scenes)) {
+    // Instantiate scenes
+    for(const id of this.stack){
+      const Ctor = this.SceneCtors[id];
+      const scene = new Ctor();
       const target = makeTarget();
-      this.layers[key] = { scene: this.scenes[key], target, opacity: 0.9 };
-      this.scenes[key].init?.(this.renderer, this.width, this.height, {
-        albumTexture: this.albumTexture,
-        palette: this.palette,
-        tempo: this.tempo,
-        mouse: this.mouse
+      this.layers[id] = { scene, target, opacity: 0.9 };
+      scene.init?.(this.renderer, this.width, this.height, {
+        albumTexture: this.albumTexture, palette: this.palette, tempo:this.tempo, mouse:this.mouse
       });
     }
   }
 
-  setAlbumArtTexture(imgEl) {
+  setAlbumArtTexture(imgEl){
     const tex = new THREE.Texture(imgEl);
     tex.needsUpdate = true;
     tex.colorSpace = THREE.SRGBColorSpace;
     this.albumTexture = tex;
-    for (const s of Object.values(this.scenes)) s.setAlbumTexture?.(tex);
+    Object.values(this.layers).forEach(l => l.scene.setAlbumTexture?.(tex));
   }
 
-  setPalette(pal) { this.palette = pal; for (const s of Object.values(this.scenes)) s.setPalette?.(pal); }
-  setAnalysis(analysis) { this.analysis = analysis; for (const s of Object.values(this.scenes)) s.setAnalysis?.(analysis); }
-  setTempo(tempo) { this.tempo = tempo; for (const s of Object.values(this.scenes)) s.setTempo?.(tempo); }
-
-  onBeat(obj) {
-    this.scenes.voronoi?.addRipple?.(obj.start, obj.duration);
-    this.scenes.kaleido?.onBeat?.();
-    this.scenes.ribbons?.onBeat?.();
-    this.scenes.covers?.onBeat?.();
-  }
-  onBar() { this.scenes.tunnel?.onBar?.(); }
-  onTatum() { this.scenes.aurora?.onTatum?.(); }
-  onSection() {
-    this.scenes.kaleido?.setSegments?.(3 + Math.floor(Math.random() * 13));
-    this.scenes.tunnel?.onSection?.();
+  setPalette(pal){
+    this.palette = pal;
+    Object.values(this.layers).forEach(l => l.scene.setPalette?.(pal));
   }
 
-  applyPreset(name) {
-    const presets = {
-      default: { bloom: 0.9, dof: 0.35, grain: 0.04, chroma: 0.0035 },
-      cinematic: { bloom: 1.3, dof: 0.55, grain: 0.06, chroma: 0.002 },
-      neon: { bloom: 1.6, dof: 0.25, grain: 0.03, chroma: 0.006 },
-      warm: { bloom: 1.1, dof: 0.4, grain: 0.045, chroma: 0.003 },
-      cool: { bloom: 0.8, dof: 0.3, grain: 0.035, chroma: 0.004 },
-    };
-    const map = { warm: 'warm', warmglow: 'warm', 'warm glow': 'warm', cool: 'cool', neon: 'neon', cinematic: 'cinematic' };
-    const key = presets[name] ? name : (map[name?.toLowerCase()] || 'default');
-    Object.assign(this.post, presets[key]);
-    this._rebuildPost();
+  setAnalysis(a){ this.analysis = a; Object.values(this.layers).forEach(l=>l.scene.setAnalysis?.(a)); }
+  setTempo(t){ this.tempo = t; Object.values(this.layers).forEach(l=>l.scene.setTempo?.(t)); }
+
+  // Director-driven triggers
+  onBeat(obj){
+    this.layers.voronoi?.scene.addRipple?.(obj.start, obj.duration);
+    this.layers.kaleido?.scene.onBeat?.();
+    this.layers.ribbons?.scene.onBeat?.();
+    this.layers.covers?.scene.onBeat?.();
+    // Subtle composite pulse
+    this.finalMaterial.uniforms.uBloom.value = THREE.MathUtils.lerp(this.finalMaterial.uniforms.uBloom.value, this._bloomBase()*1.2, 0.3);
+  }
+  onBar(){ this.layers.tunnel?.scene.onBar?.(); }
+  onTatum(){ this.layers.aurora?.scene.onTatum?.(); }
+  onSection(){
+    // Auto scene shuffle
+    if(this.mode !== 'director') return;
+    const seq = ['aurora','flow','kaleido','tunnel','ribbons','voronoi','covers'];
+    this.director.cursor = (this.director.cursor + 1) % seq.length;
+    this.director.current = [seq[this.director.cursor], seq[(this.director.cursor+3)%seq.length]];
   }
 
-  savePreset(name) {
-    const preset = { post: this.post, stack: this.stack, palette: this.palette };
-    localStorage.setItem(`viz_preset_${name}`, JSON.stringify(preset));
-    alert(`Saved preset "${name}"`);
+  directorReset(tempo){
+    this.director.lastSwitch = 0;
+    this.director.minBars = Math.max(3, Math.round(tempo/40));
+    this.director.current = ['aurora','flow'];
+    this.director.cursor = 0;
   }
 
-  setSceneStack(which) {
-    switch (which) {
-      case 'aurora': this.stack = ['aurora']; break;
-      case 'tunnel': this.stack = ['tunnel']; break;
-      case 'kaleido': this.stack = ['kaleido']; break;
-      case 'voronoi': this.stack = ['voronoi']; break;
-      case 'ribbons': this.stack = ['ribbons']; break;
-      case 'covers': this.stack = ['covers']; break;
-      default: this.stack = ['aurora', 'tunnel', 'kaleido', 'ribbons', 'covers'];
-    }
+  applyTheme({ bias='album', contrast=1.0, sat=1.0 }){
+    // push to scenes for internal coloring, if any
+    Object.values(this.layers).forEach(l => l.scene.setTheme?.({ bias, contrast, sat }));
   }
 
-  describeStack() { return this.stack.join(' + '); }
-
-  tunePost({ bloom, dof, grain, chroma }) {
-    if (typeof bloom === 'number') this.post.bloom = bloom;
-    if (typeof dof === 'number') this.post.dof = dof;
-    if (typeof grain === 'number') this.post.grain = grain;
-    if (typeof chroma === 'number') this.post.chroma = chroma;
-    this._rebuildPost();
+  setSceneMode(mode){
+    this.mode = mode;
   }
 
-  _onResize() {
+  describeStack(){
+    if(this.mode === 'director') return `Director: ${this.director.current.join(' + ')}`;
+    if(this.mode === 'all') return 'All Scenes';
+    return `Solo: ${this.mode}`;
+  }
+
+  tuneFinal({ bloom, chroma, grain, vignette }){
+    if(typeof bloom === 'number') this.finalMaterial.uniforms.uBloom.value = bloom;
+    if(typeof chroma === 'number') this.finalMaterial.uniforms.uChroma.value = chroma;
+    if(typeof grain === 'number') this.finalMaterial.uniforms.uGrain.value = grain;
+    if(typeof vignette === 'number') this.finalMaterial.uniforms.uVignette.value = vignette;
+  }
+  _bloomBase(){ return 1.0; }
+
+  setRenderScale(s){
+    this.scale = Math.max(0.5, Math.min(1.0, s||1));
+    this._onResize();
+  }
+
+  _onResize(){
     const r = this.container.getBoundingClientRect();
-    this.width = Math.max(1, Math.floor(r.width));
-    this.height = Math.max(1, Math.floor(r.height));
-    if (this.renderer) this.renderer.setSize(this.width, this.height, false);
-    for (const { target, scene } of Object.values(this.layers)) {
-      target.setSize(this.width, this.height);
-      scene.resize?.(this.width, this.height);
-    }
-    if (this.composer) this.composer.setSize(this.width, this.height);
+    this.width = Math.max(1, Math.floor(r.width * this.scale));
+    this.height = Math.max(1, Math.floor(r.height * this.scale));
+    if(this.renderer) this.renderer.setSize(this.width, this.height, false);
+    if(this.finalMaterial) this.finalMaterial.uniforms.uRes.value.set(this.width, this.height);
+    Object.values(this.layers).forEach(l=>{
+      l.target.setSize(this.width, this.height);
+      l.scene.resize?.(this.width, this.height);
+    });
   }
 
-  update(positionMs) {
-    const t = (performance.now() - this.timeStart) * 0.001;
-    const dt = 1 / 60;
+  update(positionMs){
+    const t = (performance.now() - this.timeStart)*0.001;
+    this.finalMaterial.uniforms.uTime.value = t;
 
-    // Render each scene to its target
-    for (const key of Object.keys(this.layers)) {
-      const layer = this.layers[key];
-      layer.scene.update?.(dt, t, { positionMs, palette: this.palette, mouse: this.mouse });
+    // Update scenes
+    for(const id of Object.keys(this.layers)){
+      const layer = this.layers[id];
+      layer.scene.update?.(1/60, t, { positionMs, palette: this.palette, mouse: this.mouse });
       this.renderer.setRenderTarget(layer.target);
       this.renderer.clear();
-      layer.scene.renderToTarget(this.renderer, layer.target);
+      layer.scene.renderToTarget?.(this.renderer, layer.target);
     }
     this.renderer.setRenderTarget(null);
 
-    // Bind composite textures with fallback
-    const u = this.compositeMaterial.uniforms;
-    u.t0.value = (this.layers[this.stack[0]]?.target.texture) || this.blankTexture; u.opacity0.value = 1.0;
-    u.t1.value = (this.layers[this.stack[1]]?.target.texture) || this.blankTexture; u.opacity1.value = 0.9;
-    u.t2.value = (this.layers[this.stack[2]]?.target.texture) || this.blankTexture; u.opacity2.value = 0.9;
-    u.t3.value = (this.layers[this.stack[3]]?.target.texture) || this.blankTexture; u.opacity3.value = 0.9;
-    u.t4.value = (this.layers[this.stack[4]]?.target.texture) || this.blankTexture; u.opacity4.value = 0.9;
+    // Bind textures based on mode
+    const u = this.finalMaterial.uniforms;
+    const pick = (id)=> this.layers[id]?.target.texture || null;
+    // reset ops
+    u.op0.value = u.op1.value = u.op2.value = u.op3.value = u.op4.value = u.op5.value = u.op6.value = 0.0;
+    u.t0.value = u.t1.value = u.t2.value = u.t3.value = u.t4.value = u.t5.value = u.t6.value = null;
 
-    if (this.composer) this.composer.render(dt);
-    else this.renderer.render(this.scene, this.camera);
+    let list = [];
+    if(this.mode === 'director') list = this.director.current;
+    else if(this.mode === 'all') list = this.stack;
+    else list = [this.mode];
+
+    const tex = list.map(pick).filter(Boolean);
+    const ops = list.map(()=>1.0);
+    const slots = ['t0','t1','t2','t3','t4','t5','t6'];
+    const oslots = ['op0','op1','op2','op3','op4','op5','op6'];
+    for(let i=0;i<slots.length;i++){
+      u[slots[i]].value = tex[i] || null;
+      u[oslots[i]].value = ops[i] || 0.0;
+    }
+
+    this.renderer.render(this.scene, this.camera);
   }
 }
