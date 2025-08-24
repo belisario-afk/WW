@@ -1,14 +1,6 @@
 // VizEngine: Three.js multi-scene engine with post-processing and scene stack compositor
 import * as THREE from 'https://esm.sh/three@0.160.0';
 
-// Import scenes (default exports), cache-busted
-import AuroraScene from './scenes/aurora.js?v=5';
-import KaleidoScene from './scenes/kaleidoscope.js?v=5';
-import TunnelScene from './scenes/tunnel.js?v=5';
-import VoronoiScene from './scenes/voronoi.js?v=5';
-import RibbonsScene from './scenes/ribbons.js?v=5';
-import CoversScene from './scenes/covers.js?v=6';
-
 export class VizEngine {
   constructor(container) {
     this.container = container;
@@ -27,7 +19,10 @@ export class VizEngine {
     this.stack = ['aurora', 'tunnel', 'kaleido', 'ribbons', 'covers'];
     this.layers = {}; // id -> { scene, target, opacity }
 
-    // Post FX config (module loaded dynamically)
+    // Scene constructors (filled during init by dynamic imports)
+    this.SceneCtors = null;
+
+    // Post FX (module loaded dynamically)
     this.PP = null;
     this.composer = null;
     this.post = { bloom: 0.9, dof: 0.35, grain: 0.04, chroma: 0.0035 };
@@ -63,8 +58,44 @@ export class VizEngine {
     this.renderer.setPixelRatio(this.pixelRatio);
     this.container.appendChild(this.renderer.domElement);
 
-    // Dynamically import postprocessing to avoid static import parse issues
+    // Dynamically import postprocessing to avoid static import parse/CORS issues
     this.PP = await import('https://esm.sh/postprocessing@6.35.3?deps=three@0.160.0');
+
+    // Dynamically import scenes; accept default or named class exports
+    const urls = {
+      aurora: './scenes/aurora.js?v=6',
+      kaleido: './scenes/kaleidoscope.js?v=6',
+      tunnel: './scenes/tunnel.js?v=6',
+      voronoi: './scenes/voronoi.js?v=6',
+      ribbons: './scenes/ribbons.js?v=6',
+      covers: './scenes/covers.js?v=6',
+    };
+    const mods = await Promise.all(Object.values(urls).map(u => import(u)));
+
+    const pickCtor = (mod, candidates) => {
+      // prefer default if present; else find first matching named export
+      if (mod && mod.default) return mod.default;
+      for (const name of candidates) if (mod && mod[name]) return mod[name];
+      throw new Error('Scene module missing expected export');
+    };
+
+    const keys = Object.keys(urls);
+    const ctors = {};
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      const m = mods[i];
+      // map expected names per module
+      const candidates = {
+        aurora: ['AuroraScene'],
+        kaleido: ['KaleidoScene', 'KaleidoscopeScene'],
+        tunnel: ['TunnelScene'],
+        voronoi: ['VoronoiScene'],
+        ribbons: ['RibbonsScene'],
+        covers: ['CoversScene'],
+      }[k];
+      ctors[k] = pickCtor(m, candidates || []);
+    }
+    this.SceneCtors = ctors;
 
     this._setupCompositor();
     this._createScenes();
@@ -161,17 +192,17 @@ export class VizEngine {
   _createScenes() {
     const makeTarget = () => new THREE.WebGLRenderTarget(this.width, this.height, { type: THREE.HalfFloatType, depthBuffer: false });
 
-    this.scenes.aurora = new AuroraScene();
-    this.scenes.kaleido = new KaleidoScene();
-    this.scenes.tunnel = new TunnelScene();
-    this.scenes.voronoi = new VoronoiScene();
-    this.scenes.ribbons = new RibbonsScene();
-    this.scenes.covers = new CoversScene();
+    this.scenes.aurora = new this.SceneCtors.aurora();
+    this.scenes.kaleido = new this.SceneCtors.kaleido();
+    this.scenes.tunnel = new this.SceneCtors.tunnel();
+    this.scenes.voronoi = new this.SceneCtors.voronoi();
+    this.scenes.ribbons = new this.SceneCtors.ribbons();
+    this.scenes.covers = new this.SceneCtors.covers();
 
     for (const key of Object.keys(this.scenes)) {
       const target = makeTarget();
       this.layers[key] = { scene: this.scenes[key], target, opacity: 0.9 };
-      this.scenes[key].init(this.renderer, this.width, this.height, {
+      this.scenes[key].init?.(this.renderer, this.width, this.height, {
         albumTexture: this.albumTexture,
         palette: this.palette,
         tempo: this.tempo,
@@ -193,7 +224,7 @@ export class VizEngine {
   setTempo(tempo) { this.tempo = tempo; for (const s of Object.values(this.scenes)) s.setTempo?.(tempo); }
 
   onBeat(obj) {
-    this.scenes.voronoi?.addRipple(obj.start, obj.duration);
+    this.scenes.voronoi?.addRipple?.(obj.start, obj.duration);
     this.scenes.kaleido?.onBeat?.();
     this.scenes.ribbons?.onBeat?.();
     this.scenes.covers?.onBeat?.();
