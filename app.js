@@ -506,11 +506,18 @@ async function afterAuth() {
 
 async function ensurePlayerReady() {
   if (player && deviceId) return;
+
+  // Wait until the Spotify SDK is present or its ready flag is set
   await new Promise(resolve => {
-    // Spotify SDK sets onSpotifyWebPlaybackSDKReady when loaded
-    if (window.Spotify) return resolve();
-    window.onSpotifyWebPlaybackSDKReady = resolve;
+    if (window.Spotify || window.__spotifySDKReady) return resolve();
+    // chain any existing callback
+    const prev = window.onSpotifyWebPlaybackSDKReady;
+    window.onSpotifyWebPlaybackSDKReady = () => {
+      try { if (typeof prev === 'function') prev(); } catch {}
+      resolve();
+    };
   });
+
   await setupPlayer();
   await transferPlayback();
   loginBtn.hidden = true;

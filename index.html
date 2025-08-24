@@ -59,10 +59,22 @@
     <small>Built for GitHub Pages. Spotify Premium required for Web Playback SDK.</small>
   </footer>
 
-  <!-- Color extraction for album-art-driven palettes -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.4.0/color-thief.umd.js" integrity="sha512-3HGl9j1H2J+4NZB4DSm7fC2K5nd9k2p7zkiQJpG4d8E9sJ08dlUQ2tqahLxJPQe1N2Rk7sLA3j3jF0g1v1ZkEg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <!-- Spotify Web Playback SDK -->
-  <script src="https://sdk.scdn.co/spotify-player.js"></script>
+   <!-- Color extraction for album-art-driven palettes -->
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.4.0/color-thief.umd.js"
+    integrity="sha512-r2yd2GP87iHAsf2K+ARvu01VtR7Bs04la0geDLbFlB/38AruUbA5qfmtXwXx6FZBQGJRogiPtEqtfk/fnQfaYA=="
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"></script>
+
+  <!-- Define the SDK-ready callback BEFORE loading the SDK -->
+  <script>
+    window.__spotifySDKReady = false;
+    window.onSpotifyWebPlaybackSDKReady = function () {
+      window.__spotifySDKReady = true;
+      // No-op here; app.js will wait for this flag and then set up the player.
+    };
+  </script>
+  <script src="https://sdk.scdn.co/spotify-player.js" async></script>
 
   <script>
     // App configuration (no secrets here)
@@ -80,5 +92,3 @@
     };
   </script>
   <script src="./app.js"></script>
-</body>
-</html>
