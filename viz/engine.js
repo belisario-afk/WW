@@ -7,7 +7,7 @@ import KaleidoScene from './scenes/kaleidoscope.js?v=5';
 import TunnelScene from './scenes/tunnel.js?v=5';
 import VoronoiScene from './scenes/voronoi.js?v=5';
 import RibbonsScene from './scenes/ribbons.js?v=5';
-import CoversScene from './scenes/covers.js?v=5';
+import CoversScene from './scenes/covers.js?v=6';
 
 export class VizEngine {
   constructor(container) {
