@@ -1,4 +1,4 @@
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import * as THREE from 'https://esm.sh/three@0.160.0';
 
 const frag = `
 precision highp float;
@@ -47,10 +47,7 @@ void main(){
 }
 `;
 
-const vert = `
-varying vec2 vUv;
-void main(){ vUv=uv; gl_Position = vec4(position.xy,0.0,1.0); }
-`;
+const vert = `varying vec2 vUv; void main(){ vUv=uv; gl_Position = vec4(position.xy,0.0,1.0); }`;
 
 export class VoronoiScene {
   constructor() {
@@ -58,7 +55,7 @@ export class VoronoiScene {
     this.camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
     this.mesh = null;
     this.target = null;
-    this.ripples = []; // {x,y,t}
+    this.ripples = [];
     this.palette = { palette: ['#1db954','#fff'] };
   }
 
@@ -93,8 +90,7 @@ export class VoronoiScene {
   setAnalysis() {}
   setTempo() {}
 
-  addRipple(start, dur) {
-    // place ripple near mouse, else random
+  addRipple() {
     const x = (Math.random()*2-1)*0.6;
     const y = (Math.random()*2-1)*0.6;
     this.ripples.push({ x, y, t: performance.now()*0.001 });

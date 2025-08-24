@@ -1,13 +1,13 @@
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import * as THREE from 'https://esm.sh/three@0.160.0';
 
 function mkRibbon(color) {
   const N = 120;
   const geom = new THREE.BufferGeometry();
   const pos = new Float32Array(N * 3);
   geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.8, linewidth: 1 });
+  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.8 });
   const line = new THREE.Line(geom, mat);
-  line.userData = { pts: Array.from({length:N}, (_,i)=>new THREE.Vector3(0,0,0)), t: Math.random()*100 };
+  line.userData = { pts: Array.from({length:N}, () => new THREE.Vector3(0,0,0)), t: Math.random()*100 };
   return line;
 }
 
@@ -45,7 +45,6 @@ export class RibbonsScene {
   setAnalysis() {}
   setTempo() {}
   onBeat(){
-    // small opacity pop
     this.ribbons.forEach(r => r.material.opacity = 1.0);
   }
 

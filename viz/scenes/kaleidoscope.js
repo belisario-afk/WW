@@ -1,4 +1,4 @@
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import * as THREE from 'https://esm.sh/three@0.160.0';
 
 const frag = `
 precision highp float;
@@ -28,10 +28,7 @@ void main(){
 }
 `;
 
-const vert = `
-varying vec2 vUv;
-void main(){ vUv=uv; gl_Position = vec4(position.xy,0.0,1.0); }
-`;
+const vert = `varying vec2 vUv; void main(){ vUv=uv; gl_Position = vec4(position.xy,0.0,1.0); }`;
 
 export class KaleidoScene {
   constructor() {
@@ -46,7 +43,7 @@ export class KaleidoScene {
 
   init(renderer, width, height, { albumTexture }) {
     this.target = new THREE.WebGLRenderTarget(width, height, { depthBuffer: false });
-    this.album = albumTexture || this._fallbackTexture(renderer);
+    this.album = albumTexture || this._fallbackTexture();
 
     const mat = new THREE.ShaderMaterial({
       uniforms: {
@@ -61,9 +58,9 @@ export class KaleidoScene {
     this.scene.add(this.mesh);
   }
 
-  _fallbackTexture(renderer) {
-    const data = new Uint8Array([29,185,84]); // spotify green pixel
-    const tex = new THREE.DataTexture(data, 1, 1, THREE.RGBFormat);
+  _fallbackTexture() {
+    const data = new Uint8Array([29,185,84,255]); // RGBA
+    const tex = new THREE.DataTexture(data, 1, 1, THREE.RGBAFormat);
     tex.needsUpdate = true;
     tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
@@ -77,13 +74,11 @@ export class KaleidoScene {
   setSegments(n) { this.segments = Math.max(3, Math.min(24, n|0)); if (this.mesh) this.mesh.material.uniforms.uSegments.value = this.segments; }
 
   resize() {}
-
   update(dt, t) {
     if (!this.mesh) return;
     this.mesh.material.uniforms.uTime.value = t;
     this.mesh.material.uniforms.uRadius.value = THREE.MathUtils.lerp(this.mesh.material.uniforms.uRadius.value, 1.15, 0.05);
   }
-
   renderToTarget(renderer, target) {
     renderer.setRenderTarget(target);
     renderer.render(this.scene, this.camera);

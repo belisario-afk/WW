@@ -1,4 +1,4 @@
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import * as THREE from 'https://esm.sh/three@0.160.0';
 
 export class CoversScene {
   constructor() {
@@ -11,7 +11,7 @@ export class CoversScene {
 
   init(renderer, width, height, { albumTexture, mouse }) {
     this.target = new THREE.WebGLRenderTarget(width, height, { depthBuffer: true });
-    this.album = albumTexture || this._fallback(renderer);
+    this.album = albumTexture || this._fallback();
     this.mouse = mouse;
 
     this._spawnSprites();
@@ -19,9 +19,9 @@ export class CoversScene {
     this.resize(width, height);
   }
 
-  _fallback(renderer) {
-    const data = new Uint8Array([29,185,84]);
-    const tex = new THREE.DataTexture(data, 1, 1, THREE.RGBFormat);
+  _fallback() {
+    const data = new Uint8Array([29,185,84,255]); // RGBA
+    const tex = new THREE.DataTexture(data, 1, 1, THREE.RGBAFormat);
     tex.needsUpdate = true;
     tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
@@ -64,7 +64,6 @@ export class CoversScene {
       s.material.opacity = THREE.MathUtils.lerp(s.material.opacity, 0.85, 0.05);
       s.scale.lerp(new THREE.Vector3(1,1,1), 0.05);
     }
-    // subtle parallax on mouse
     this.scene.position.x = (mouse?.x || 0) * 0.3;
     this.scene.position.y = (mouse?.y || 0) * 0.2;
   }

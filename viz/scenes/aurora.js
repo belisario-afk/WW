@@ -1,4 +1,4 @@
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import * as THREE from 'https://esm.sh/three@0.160.0';
 
 const frag = `
 precision highp float;
@@ -53,7 +53,7 @@ export class AuroraScene {
     this.palette = { palette: ['#1db954','#fff','#222'] };
   }
 
-  init(renderer, width, height, { albumTexture, palette }) {
+  init(renderer, width, height, { palette }) {
     this.target = new THREE.WebGLRenderTarget(width, height, { depthBuffer: false });
     this.palette = palette || this.palette;
 
