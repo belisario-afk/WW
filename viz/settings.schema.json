@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WW Visualizer Settings",
+  "type": "object",
+  "properties": {
+    "theme": { "type": "string", "description": "Theme ID from themes.json or 'auto'." },
+    "mode": { "type": "string", "enum": ["director", "all", "aurora", "flow", "tunnel", "kaleido", "voronoi", "ribbons", "covers"] },
+    "render": {
+      "type": "object",
+      "properties": {
+        "scale": { "type": "number", "minimum": 0.5, "maximum": 1.0, "default": 1.0 },
+        "taa": { "type": "boolean", "default": true },
+        "fxaa": { "type": "boolean", "default": false },
+        "motionBlur": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.2 },
+        "targetFps": { "type": "integer", "enum": [30, 45, 60], "default": 60 },
+        "dynamicScaling": { "type": "boolean", "default": true }
+      },
+      "required": ["scale", "targetFps"]
+    },
+    "post": {
+      "type": "object",
+      "properties": {
+        "bloom": { "type": "number", "minimum": 0, "maximum": 2, "default": 1.2 },
+        "chroma": { "type": "number", "minimum": 0, "maximum": 0.02, "default": 0.003 },
+        "grain": { "type": "number", "minimum": 0, "maximum": 0.5, "default": 0.05 },
+        "vignette": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.35 },
+        "exposure": { "type": "number", "minimum": 0.5, "maximum": 2.0, "default": 1.0 },
+        "gamma": { "type": "number", "minimum": 1.8, "maximum": 2.4, "default": 2.2 }
+      }
+    },
+    "director": {
+      "type": "object",
+      "properties": {
+        "switchOn": { "type": "string", "enum": ["bars", "sections", "phrases"], "default": "sections" },
+        "minBarsBetween": { "type": "integer", "minimum": 2, "maximum": 16, "default": 4 },
+        "energyBias": { "type": "number", "minimum": -1, "maximum": 1, "default": 0 },
+        "valenceBias": { "type": "number", "minimum": -1, "maximum": 1, "default": 0 },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["crossfade", "additive-glow", "exposure-ramp", "wipe", "pixelate", "kaleido-morph"]
+          },
+          "default": ["crossfade", "additive-glow", "exposure-ramp"]
+        }
+      }
+    },
+    "scenes": {
+      "type": "object",
+      "properties": {
+        "aurora": { "type": "object", "properties": { "intensity": { "type": "number", "default": 1.0 }, "streaks": { "type": "number", "default": 0.6 } } },
+        "flow":    { "type": "object", "properties": { "density": { "type": "number", "default": 0.9 }, "curl": { "type": "number", "default": 0.7 }, "trail": { "type": "number", "default": 0.8 } } },
+        "tunnel":  { "type": "object", "properties": { "speed": { "type": "number", "default": 1.0 }, "twist": { "type": "number", "default": 0.2 } } },
+        "kaleido": { "type": "object", "properties": { "segments": { "type": "integer", "default": 8 }, "radius": { "type": "number", "default": 1.15 } } },
+        "voronoi": { "type": "object", "properties": { "crackle": { "type": "number", "default": 0.5 }, "rippleStrength": { "type": "number", "default": 0.8 } } },
+        "ribbons": { "type": "object", "properties": { "count": { "type": "integer", "default": 5 }, "opacity": { "type": "number", "default": 0.7 } } },
+        "covers":  { "type": "object", "properties": { "count": { "type": "integer", "default": 20 }, "parallax": { "type": "number", "default": 0.3 } } }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "properties": {
+        "hud": { "type": "boolean", "default": true },
+        "hudCompact": { "type": "boolean", "default": false },
+        "a11yHighContrast": { "type": "boolean", "default": false },
+        "showFps": { "type": "boolean", "default": false }
+      }
+    }
+  },
+  "required": ["theme", "mode", "render", "post"]
+}
