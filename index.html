@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WW — Spotify Player + Visualizer</title>
+  <meta name="description" content="Spotify login, player controls, search, and an album-color-matched music visualizer." />
+  <link rel="preconnect" href="https://i.scdn.co" crossorigin>
+  <link rel="preconnect" href="https://api.spotify.com" crossorigin>
+  <link rel="preconnect" href="https://accounts.spotify.com" crossorigin>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" />
+        <path d="M6 9c4-2 8-2 12 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        <path d="M6 12c4-1.5 8-1.5 12 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        <path d="M6 15c4-1 8-1 12 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      </svg>
+      <span>WW Visualizer</span>
+    </div>
+
+    <div class="auth">
+      <button id="loginBtn" class="primary">Log in with Spotify</button>
+      <button id="logoutBtn" class="ghost" hidden>Log out</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="now-playing">
+      <div class="art-wrap">
+        <img id="albumArt" alt="Album art" crossorigin="anonymous" />
+        <canvas id="viz" width="640" height="640" aria-label="Music visualizer" role="img"></canvas>
+      </div>
+      <div class="track-meta">
+        <h1 id="trackName">—</h1>
+        <p id="artistName" class="muted">—</p>
+        <div class="controls">
+          <button id="prevBtn" title="Previous" disabled>⏮</button>
+          <button id="playPauseBtn" title="Play/Pause" disabled>▶️</button>
+          <button id="nextBtn" title="Next" disabled>⏭</button>
+        </div>
+        <div class="status" id="status">Not authenticated</div>
+      </div>
+    </section>
+
+    <section class="search">
+      <form id="searchForm">
+        <input id="searchInput" type="search" placeholder="Search tracks or paste a Spotify URL…" autocomplete="off" />
+        <button class="primary" type="submit">Search</button>
+      </form>
+      <ul id="results" class="results"></ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <small>Built for GitHub Pages. Spotify Premium required for Web Playback SDK.</small>
+  </footer>
+
+  <!-- Color extraction for album-art-driven palettes -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.4.0/color-thief.umd.js" integrity="sha512-3HGl9j1H2J+4NZB4DSm7fC2K5nd9k2p7zkiQJpG4d8E9sJ08dlUQ2tqahLxJPQe1N2Rk7sLA3j3jF0g1v1ZkEg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- Spotify Web Playback SDK -->
+  <script src="https://sdk.scdn.co/spotify-player.js"></script>
+
+  <script>
+    // App configuration (no secrets here)
+    window.APP_CONFIG = {
+      CLIENT_ID: "0b064e7fc39a4ce98123f0a8a6b5aea7",
+      REDIRECT_URI: "https://belisario-afk.github.io/WW/",
+      SCOPES: [
+        "streaming",
+        "user-read-email",
+        "user-read-private",
+        "user-read-playback-state",
+        "user-modify-playback-state",
+        "user-read-currently-playing"
+      ]
+    };
+  </script>
+  <script src="./app.js"></script>
+</body>
+</html>
